@@ -1,0 +1,12 @@
+{
+    "recommendations": [
+        "dbaeumer.vscode-eslint",
+        "esbenp.prettier-vscode",
+        "msjsdiag.debugger-for-chrome",
+        "vscode-icons-team.vscode-icons",
+        "redhat.java",
+        "vscjava.vscode-java-pack",
+        "dart-code.flutter",
+        "ms-azuretools.vscode-docker"
+    ]
+}

@@ -1,0 +1,15 @@
+{
+  "applinks": {
+    "details": [
+      {
+        "appIDs": ["TEAMID.app.hiunni.mobile"],
+        "components": [
+          { "/": "/rooms/*" },
+          { "/": "/posts/*" },
+          { "/": "/dm/*" },
+          { "/": "/places/*" }
+        ]
+      }
+    ]
+  }
+}

@@ -1,0 +1,113 @@
+# HIUNNI API (Cloudflare Workers) — staging candidate
+
+> **This is not the production backend.** The production source (`HIUNNI_v541_Development.zip`,
+> `dist/`, `worker/`, `drizzle/`, the D1 schema and the original 1,881 tests) was not in the handoff
+> package. This Worker implements the contract items (F01–F10) against **synthetic data**, so the
+> behaviour can be reviewed and reconciled with the real source once it arrives. Do not point it at
+> production, and do not migrate production data with it.
+
+Stack: Workers + [Hono](https://hono.dev) · D1 (SQLite) · R2 (private media) · Durable Objects
+(WebSocket hubs, hibernation API) · Zod validation · Vitest via `@cloudflare/vitest-plugin`
+(tests run inside workerd/Miniflare against real local D1/R2/DO).
+
+## Run
+
+```bash
+npm install
+cp .dev.vars.example .dev.vars          # set MEDIA_SIGNING_KEY
+npm run db:reset:local                  # wipe local D1, apply migrations, load synthetic seed
+npm run dev                             # API + web prototype on http://localhost:8787
+npm test                                # 44 tests
+npm run typecheck
+```
+
+`npm run dev` also serves the web prototype (`../web/index.html`) at `/`, from the same origin as the
+API, so no CORS setup is needed. To point the page at a different API, open it with
+`?api=http://host:port`. Synthetic accounts: 테스트A/B/C (`usera`/`userb`/`userc`), 합성 실장 하나
+(`manager1`, operator of store 1) and 운영자 (`admin1`). Re-run `db:reset:local` with the dev server
+stopped to start over.
+
+Dev login (development only; it returns 404 unless `ENVIRONMENT=development` and `DEV_LOGIN_ENABLED=true`):
+
+```bash
+curl -X POST localhost:8787/auth/dev-login -H 'Content-Type: application/json' -d '{"userId":"usera"}'
+# → { token } — send as  Authorization: Bearer <token>
+```
+
+## Contract status (F01–F10)
+
+| ID | Item | What exists here | Verified by | Still needed (cannot be done without client access) |
+|---|---|---|---|---|
+| F01 | Cloudflare migration | Worker + D1 schema (`migrations/0001_init.sql`), bearer sessions, logout, withdraw | tests | Production source & D1 backup; reconcile schema with the real `drizzle/`; record counts and ID/hash comparison; **real phone verification (PortOne/KCP) + OAuth login replacing `/auth/dev-login`**; rollback rehearsal |
+| F02 | Photos on R2 | Upload with type sniffing (jpeg/png/webp, ≤10 MB), SHA-256, private bucket, 5-minute HMAC-signed URLs, access via DM/room membership, owner delete | tests (403 unauthorised/tampered/expired, byte hash round-trip) | Migrating existing DB photos to R2 with before/after file counts and hashes; mobile picker/upload on devices |
+| F03 | <1 s realtime | Durable Object per channel (`room:`, `dm:`, `status`); single-use 30 s tickets; idempotent sends (`requestId`); `afterSeq` backfill after reconnect; socket revocation (4003) on kick/leave/block/close | tests (two clients in Miniflare; delivery well under 1 s locally) | **Two physical phones on staging**: measure latency, reconnect and offline behaviour; Flutter client subscription |
+| F04 | Anonymous 1:1 DM | Request (from a profile or a post) → accept/reject/cancel; one conversation per pair (idempotent accept); no messages before acceptance; third-party 403; photos; read receipts; block cuts sockets and sending both ways; reports | tests (A→B→talk→C denied→block→logout scenario) | Moderation workflow for reports; two-device check |
+| F05 | Push | Device token register/move/delete (removed on logout and withdrawal); per-type toggles (comment/dm/saved); KST DND window; hide-content; secret comments and DM bodies never in payloads; inbox + read | tests | **Actual FCM/APNs delivery is not implemented.** Rows wait in `push_outbox` with status `pending`; a sender needs Firebase/APNs credentials. Real-device receipt in foreground, background and killed states |
+| F06 | Store release | — (out of scope for the backend) | — | Signing, Face ID/lock, deep links, TestFlight/Play review |
+| F07 | Store-room tools | Prices (`amount: null` = 문의, distinct from 0), terms, vacancy log → live status broadcast; store-operator-only edits; data scoped per store | tests | Real store IDs and roles from production |
+| F08 | Staff last seen | Last authenticated activity (written at most once a minute); shown only with the staff member's opt-in (`PATCH /me/privacy`); hidden if blocked either way or withdrawn | tests | Client sign-off on the definition and timezone of "last seen" and on the exposure policy |
+| F09 | Board | Server-side latest/oldest/popular keyset pagination (posts and comments); notices fetched separately; secret-comment ACL (commenter, post author, admin); likes; blocked authors filtered; idempotent create (`mutationId`); DM from post | tests (55 comments × 3 sorts, no duplicates or gaps) | Production board/category codes |
+| F10 | Places | Weekly intervals that may cross midnight + closure dates; `lateNight` (22:00–06:00), `allDay`, `weekend`, `openNow`, `unknown` kept distinct from closed; filtered cursor pagination | tests (Friday→Saturday midnight, closures, 70 places > 48) | Production business-hours data and policy; region and category code mapping |
+
+"Verified by tests" means automated tests on local Miniflare only. Nothing here has been checked on
+staging, on devices, or by the client.
+
+## Checked against the client's request (하이언니 개발 의뢰서, 2026-11-12)
+
+| 의뢰서 | Status in this candidate |
+|---|---|
+| ③ 채팅방·오픈톡·가게 방·가게 숫자 즉시 반영 (웹소켓) | Done locally. Topic rooms (데일리톡), **익명 오픈톡** with per-room automatic nicknames (migration 0002), store rooms, and live counters all use WebSocket. |
+| ④ 글이나 댓글에서 신청 → 수락 후 대화, 사진·읽음·신고·차단 | Done (requests from posts and from comments). |
+| ⑤ 댓글·1:1·**찜한 가게 소식** 알림 + 종류별·방해 금지·내용 숨기기 | Inbox and settings are done. Saved-store updates notify savers, throttled to once per 10 minutes per store. **Sending to phones (FCM/APNs) is not done.** |
+| ⑦ 가게 방 오른쪽 버튼 | Done (가격표, 용어설명, 담당 찾기, 빈방 기록). |
+| ⑧ 초이스톡 실장 카드 + 최근 접속 | Done (opt-in). |
+| ⑨ 비밀 댓글, 등록순·공감순·최신순, 글에서 1:1 | Done. |
+| ⑩ 심야·24시, 주말 영업 **탭** | Done as tabs. Place categories follow the client's list: 헤어·메이크업, 홀복·렌탈, 성형·시술, 네일&취미, 생활필수, 놀거리 ZIP. The letter mentions 7 categories but names 6, so the 7th needs confirming. |
+| ①②⑥ 서버 이전, 기존 사진 R2 이전, 스토어 출시 | Not started. These need production access. |
+| 지켜 주셨으면 하는 것: 자료는 지우지 말고 숨기기 | Posts, comments, accounts and media are hidden, never deleted. Deleting a photo keeps the R2 object. |
+| 지켜 주셨으면 하는 것: 미드나잇테라스 사진·문구·로고 금지 | The web prototype uses its own "hi" mark and synthetic copy only. |
+| 지켜 주셨으면 하는 것: 기존 기능 유지 | **Not verifiable yet.** The existing features (게시판 7개 + 법률 게시판, BEST, 투표, 실시간 검색어, 출근백과, LIVE 번개모임, 언니그램, 출석·출근가계부, 가게 소식·스토리·지도, 업체 채널 …) live in the production source, which has not been received. This candidate does not replace them. |
+
+## API overview
+
+All routes except `/health`, `/auth/dev-login`, `/realtime/ws` and `/media/:id/raw` need
+`Authorization: Bearer <token>`. Errors look like `{ "error": { "code", "message" } }`. Lists return
+`{ items, nextCursor, hasMore }`, and cursors are opaque. Times are ISO-8601 UTC. Hours and DND are
+evaluated in KST.
+
+| Area | Routes |
+|---|---|
+| Auth / me | `POST /auth/dev-login` · `POST /auth/logout` · `GET /me` · `PATCH /me/privacy` · `DELETE /me` · `PUT/DELETE /me/saved/{room\|place}/:id` |
+| Safety | `POST /safety/blocks` · `DELETE /safety/blocks/:userId` · `GET /safety/blocks` · `POST /safety/reports` |
+| Realtime | `POST /realtime/tickets {channel}` → `GET /realtime/ws?ticket=` (WebSocket; send `ping` to get `pong`). Events: `ready`, `message`, `status`, `member`, `tools`, `read`, `revoked` |
+| Rooms | `GET /rooms` · `GET /rooms/:id` · `POST /rooms/:id/join` · `POST /rooms/:id/leave` · `GET /rooms/:id/members?state=` · `POST /rooms/:id/members/:userId {action: approve\|reject\|kick\|block\|unblock}` · `POST /rooms/:id/close` · `PUT /rooms/:id/status` · `GET/POST /rooms/:id/messages` |
+| Store tools | `GET /rooms/:id/tools` · `PUT /rooms/:id/tools/prices` · `PUT /rooms/:id/tools/terms` · `POST /rooms/:id/tools/vacancy` · `GET /rooms/:id/staff` |
+| DM | `POST /dm/requests {toUserId \| postId}` · `GET /dm/requests?box=received\|sent` · `POST /dm/requests/:id/{accept,reject,cancel}` · `GET /dm/conversations` · `GET/POST /dm/conversations/:id/messages` · `POST /dm/conversations/:id/read` |
+| Board | `GET /posts?board=&sort=latest\|oldest\|popular` · `GET /posts/notices?board=` · `POST /posts` · `GET/DELETE /posts/:id` · `PUT/DELETE /posts/:id/like` · `GET/POST /posts/:id/comments` · `PUT/DELETE /comments/:id/like` · `DELETE /comments/:id` |
+| Places | `GET /places?category=&region=&q=&filter=lateNight,allDay,weekend,openNow&date=YYYY-MM-DD&saved=true` · `GET /places/:id` · `PUT /places/:id/hours` (operator) |
+| Media | `POST /media` (raw body) · `GET /media/:id/url` · `GET /media/:id/raw?exp=&sig=` · `DELETE /media/:id` |
+| Push | `PUT/DELETE /push/devices` · `GET/PUT /push/preferences` · `GET /notifications` · `POST /notifications/read` |
+
+## Design notes
+
+- **Writes go through HTTP; WebSockets only fan out.** Every message is stored in D1 before it is
+  broadcast, so an acknowledged message is never lost. A client that reconnects backfills with
+  `afterSeq`. A retry with the same `requestId` returns the original message (`duplicate: true`) and
+  is not broadcast again. The same `requestId` with a different body returns 409.
+- **The bearer token never appears in a URL.** Browsers cannot set headers on a WebSocket, so the
+  client exchanges the token for a single-use ticket that expires after 30 seconds.
+- **`null` is different from `0`** in live status counts, prices and hours. Unknown hours are never
+  reported as closed.
+- **Race safety** comes from database constraints rather than from checks in code. Room capacity is
+  checked inside the same `UPDATE`. Each pair of users gets one conversation (a `UNIQUE` constraint
+  on the pair). A pair can have only one pending request (a partial unique index).
+
+## Before going further
+
+1. Get the production source and reconcile this schema with it, table by table. Wherever the real API
+   contract differs, the real one wins.
+2. Replace `/auth/dev-login` with the real login, and turn `DEV_LOGIN_ENABLED` off outside development.
+3. Implement the FCM HTTP v1 and APNs senders that drain `push_outbox`, using credentials kept in
+   Workers secrets.
+4. Create D1, R2 and the Durable Object on the client's Cloudflare account, replace the placeholder
+   `database_id`, and set `MEDIA_SIGNING_KEY` with `wrangler secret put`.

@@ -1,0 +1,56 @@
+{
+  "inspection_date": "2026-11-19",
+  "scope": "zip integrity, entry paths, known hardcoded secret patterns (heuristic only)",
+  "results": [
+    {
+      "filename": "HIUNNI_FlutterFlow_iOS_Preview_20261119.zip",
+      "bytes": 238733,
+      "entries": 144,
+      "integrity": true,
+      "zip_slip_count": 0,
+      "oversized_entry_count": 0,
+      "potential_secret_pattern_count": 0,
+      "potential_secret_file_types": []
+    },
+    {
+      "filename": "HIUNNI_Flutter_Continue_20261119(2).zip",
+      "bytes": 46187745,
+      "entries": 390,
+      "integrity": true,
+      "zip_slip_count": 0,
+      "oversized_entry_count": 0,
+      "potential_secret_pattern_count": 0,
+      "potential_secret_file_types": []
+    },
+    {
+      "filename": "HIUNNI_Midnight_Cat_Integrated_20261119.zip",
+      "bytes": 10417253,
+      "entries": 348,
+      "integrity": true,
+      "zip_slip_count": 0,
+      "oversized_entry_count": 0,
+      "potential_secret_pattern_count": 0,
+      "potential_secret_file_types": []
+    },
+    {
+      "filename": "HIUNNI_Robert_Webapp_FlutterFlow_Design_Handoff_20261119.zip",
+      "bytes": 15199554,
+      "entries": 301,
+      "integrity": true,
+      "zip_slip_count": 0,
+      "oversized_entry_count": 0,
+      "potential_secret_pattern_count": 0,
+      "potential_secret_file_types": []
+    },
+    {
+      "filename": "HIUNNI_Web_SQL_UIUX_v2_Handoff_20261119.zip",
+      "bytes": 48608176,
+      "entries": 41,
+      "integrity": true,
+      "zip_slip_count": 0,
+      "oversized_entry_count": 0,
+      "potential_secret_pattern_count": 0,
+      "potential_secret_file_types": []
+    }
+  ]
+}

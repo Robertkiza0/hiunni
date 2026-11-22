@@ -1,0 +1,56 @@
+plugins { id 'com.android.application' }
+
+// Secrets are supplied only to the build process; never saved in the project.
+def releaseKeys = ['HIUNNI_KEYSTORE', 'HIUNNI_KEYSTORE_PASSWORD', 'HIUNNI_KEY_ALIAS', 'HIUNNI_KEY_PASSWORD']
+def releaseValues = releaseKeys.collectEntries { key -> [(key): System.getenv(key)] }
+def hasReleaseSigning = releaseValues.values().every { it != null && !it.isBlank() }
+
+android {
+    namespace 'app.hiunni.mobile'
+    compileSdk 36
+    defaultConfig {
+        applicationId 'app.hiunni.mobile'
+        minSdk 26
+        targetSdk 36
+        versionCode 4
+        versionName '1.0.1'
+    }
+    signingConfigs {
+        if (hasReleaseSigning) {
+            release {
+                storeFile file(releaseValues.HIUNNI_KEYSTORE)
+                storePassword releaseValues.HIUNNI_KEYSTORE_PASSWORD
+                keyAlias releaseValues.HIUNNI_KEY_ALIAS
+                keyPassword releaseValues.HIUNNI_KEY_PASSWORD
+            }
+        }
+    }
+    buildTypes {
+        release {
+            minifyEnabled false
+            if (hasReleaseSigning) signingConfig signingConfigs.release
+        }
+    }
+    compileOptions {
+        sourceCompatibility JavaVersion.VERSION_17
+        targetCompatibility JavaVersion.VERSION_17
+    }
+}
+def releaseSigningCheck = tasks.register('checkReleaseSigning') {
+    doLast {
+        def missing = releaseKeys.findAll { !releaseValues[it] || releaseValues[it].isBlank() }
+        if (!missing.isEmpty()) throw new GradleException('Release signing is not configured. Supply: ' + missing.join(', ') + '. Use assembleDebug for device testing.')
+        def signingFile = file(releaseValues.HIUNNI_KEYSTORE)
+        if (!signingFile.isFile()) throw new GradleException('The release keystore file is unavailable.')
+        if (signingFile.name.equalsIgnoreCase('debug.keystore') || releaseValues.HIUNNI_KEY_ALIAS.equalsIgnoreCase('androiddebugkey')) {
+            throw new GradleException('A debug signing key must not be used for a store release.')
+        }
+    }
+}
+tasks.configureEach { task ->
+    if (task.name == 'preReleaseBuild' || task.name == 'validateSigningRelease') task.dependsOn(releaseSigningCheck)
+}
+dependencies {
+    implementation 'com.google.androidbrowserhelper:androidbrowserhelper:2.7.3'
+    testImplementation 'junit:junit:4.13.2'
+}

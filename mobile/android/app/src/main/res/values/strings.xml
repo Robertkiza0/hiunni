@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">하이언니</string>
+    <string name="information">정보공유</string>
+    <string name="livechat">라이브챗</string>
+    <string name="meetups">모임</string>
+    <string name="launch_error_title">하이언니를 열 수 없어요</string>
+    <string name="launch_error_detail">Chrome 또는 삼성 인터넷을 업데이트한 뒤 다시 시도해 주세요.</string>
+    <string name="launch_retry">다시 시도</string>
+    <string name="asset_statements" translatable="false">[{\"relation\":[\"delegate_permission/common.handle_all_urls\"],\"target\":{\"namespace\":\"web\",\"site\":\"https://hiunni.kr\"}}]</string>
+    <color name="background">#FFF7FA</color>
+</resources>

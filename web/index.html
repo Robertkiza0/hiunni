@@ -1,0 +1,2288 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+<meta name="theme-color" content="#131217" />
+<title data-i18n>하이언니</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='8' fill='%23825ED0'/%3E%3Ctext x='16' y='22' font-size='16' font-weight='900' text-anchor='middle' fill='white' font-family='sans-serif' letter-spacing='-1'%3Ehi%3C/text%3E%3C/svg%3E" />
+<!--
+  HIUNNI web prototype, connected to the staging candidate API in ../backend.
+  - Brand tokens per spec: background #131217, primary #825ED0.
+  - Tabs per spec: 실시간현황 / 데일리톡 / 라운지 / 플레이스 / 마이페이지.
+  - All content comes from the API (synthetic seed). Nothing falls back to mock data:
+    API errors are shown as errors.
+  - API base: same origin by default (served by `wrangler dev`), or ?api=http://host:port
+-->
+<style>
+  :root {
+    --bg: #131217;
+    --surface: #1b1921;
+    --surface-2: #24212d;
+    --surface-3: #2d2938;
+    --line: #322e3d;
+    --primary: #825ED0;
+    --primary-hover: #8f6edb;
+    --primary-text: #b9a2f0;   /* primary for small text on dark (contrast) */
+    --primary-soft: rgba(130, 94, 208, .16);
+    --accent: #e87fa0;
+    --text: #f3f1f8;
+    --text-2: #a7a2b5;
+    --text-3: #77728a;
+    --ok: #5cc9a0;
+    --warn: #e8b45c;
+    --danger: #ec6f6f;
+    --radius: 14px;
+    --radius-sm: 10px;
+    --top-h: 56px;
+    --nav-h: 62px;
+    color-scheme: dark;
+  }
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  html, body { height: 100%; }
+  body {
+    background: var(--bg); color: var(--text);
+    font: 15px/1.5 'Pretendard', 'Apple SD Gothic Neo', 'Noto Sans KR', system-ui, sans-serif;
+    -webkit-font-smoothing: antialiased; overflow: hidden;
+  }
+  button, input, textarea, select { font: inherit; color: inherit; }
+  button { cursor: pointer; border: none; background: none; }
+  button:disabled { cursor: not-allowed; opacity: .5; }
+  :focus-visible { outline: 2px solid var(--primary-text); outline-offset: 2px; }
+  .hidden { display: none !important; }
+  .lang-btn { min-width: 44px; font-size: 12px; letter-spacing: .2px; }
+  .lang-corner { position: absolute; top: calc(16px + env(safe-area-inset-top)); right: 16px; }
+  .muted { color: var(--text-2); }
+  .faint { color: var(--text-3); }
+  .small { font-size: 12px; }
+  .nowrap { white-space: nowrap; }
+  .grow { flex: 1; min-width: 0; }
+  .row { display: flex; align-items: center; gap: 8px; }
+  .between { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+  .stack { display: flex; flex-direction: column; gap: 10px; }
+  .ellipsis { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .icon { width: 20px; height: 20px; display: inline-block; flex-shrink: 0; }
+  .icon svg { width: 100%; height: 100%; fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
+
+  /* ── Buttons, chips, inputs ─────────────────────────── */
+  .btn { display: inline-flex; align-items: center; justify-content: center; gap: 6px; padding: 10px 16px; border-radius: var(--radius-sm); font-weight: 700; font-size: 14px; background: var(--surface-3); border: 1px solid var(--line); transition: background .15s; }
+  .btn:hover:not(:disabled) { background: var(--line); }
+  .btn.primary { background: var(--primary); border-color: var(--primary); color: #fff; }
+  .btn.primary:hover:not(:disabled) { background: var(--primary-hover); }
+  .btn.danger { color: var(--danger); }
+  .btn.block { width: 100%; padding: 14px; font-size: 15px; }
+  .btn.sm { padding: 6px 10px; font-size: 12px; border-radius: 8px; }
+  .icon-btn { width: 38px; height: 38px; display: inline-flex; align-items: center; justify-content: center; border-radius: 10px; color: var(--text-2); position: relative; }
+  .icon-btn:hover { background: var(--surface-2); color: var(--text); }
+  .chips { display: flex; gap: 6px; overflow-x: auto; padding: 2px 0; scrollbar-width: none; }
+  .chips::-webkit-scrollbar { display: none; }
+  .chip { flex-shrink: 0; padding: 6px 12px; border-radius: 999px; font-size: 13px; font-weight: 600; background: var(--surface-2); color: var(--text-2); border: 1px solid var(--line); }
+  .chip[aria-pressed="true"] { background: var(--primary); border-color: var(--primary); color: #fff; }
+  .badge { display: inline-flex; align-items: center; padding: 1px 7px; border-radius: 999px; font-size: 11px; font-weight: 700; background: var(--surface-3); color: var(--text-2); white-space: nowrap; }
+  .badge.primary { background: var(--primary-soft); color: var(--primary-text); }
+  .badge.accent { background: rgba(232,127,160,.16); color: var(--accent); }
+  .badge.ok { background: rgba(92,201,160,.14); color: var(--ok); }
+  .badge.warn { background: rgba(232,180,92,.14); color: var(--warn); }
+  .badge.danger { background: rgba(236,111,111,.14); color: var(--danger); }
+  .dot { position: absolute; top: 6px; right: 6px; min-width: 16px; height: 16px; padding: 0 4px; border-radius: 999px; background: var(--accent); color: #fff; font-size: 10px; font-weight: 800; display: flex; align-items: center; justify-content: center; }
+  .field { width: 100%; padding: 11px 13px; background: var(--surface-2); border: 1px solid var(--line); border-radius: var(--radius-sm); outline: none; }
+  .field:focus { border-color: var(--primary); }
+  .field::placeholder { color: var(--text-3); }
+  textarea.field { resize: vertical; min-height: 90px; }
+  label.lbl { display: block; font-size: 12px; font-weight: 700; color: var(--text-2); margin-bottom: 6px; }
+  .check { display: inline-flex; align-items: center; gap: 6px; font-size: 13px; color: var(--text-2); cursor: pointer; }
+  .check input { accent-color: var(--primary); width: 16px; height: 16px; }
+  .switch { position: relative; width: 44px; height: 26px; border-radius: 999px; background: var(--surface-3); border: 1px solid var(--line); flex-shrink: 0; transition: background .15s; }
+  .switch::after { content: ''; position: absolute; top: 2px; left: 2px; width: 20px; height: 20px; border-radius: 50%; background: var(--text-2); transition: transform .15s, background .15s; }
+  .switch[aria-checked="true"] { background: var(--primary); border-color: var(--primary); }
+  .switch[aria-checked="true"]::after { transform: translateX(18px); background: #fff; }
+
+  /* ── Full-screen entry screens ──────────────────────── */
+  .screen { position: fixed; inset: 0; overflow-y: auto; display: flex; align-items: center; justify-content: center; padding: 24px 16px; }
+  #intro { background: radial-gradient(120% 80% at 50% 0%, #3b2370 0%, #1d1430 45%, var(--bg) 80%); }
+  .intro-card { width: 100%; max-width: 400px; text-align: center; display: flex; flex-direction: column; align-items: center; gap: 18px; }
+  .hi-mark { position: relative; width: 148px; height: 148px; border-radius: 40px; display: flex; align-items: center; justify-content: center;
+    background: linear-gradient(145deg, #9a78e6 0%, var(--primary) 55%, #6a46b8 100%);
+    box-shadow: 0 18px 50px rgba(130, 94, 208, .45), inset 0 1px 0 rgba(255, 255, 255, .25); }
+  .hi-word { font-size: 76px; font-weight: 900; letter-spacing: -4px; color: #fff; line-height: 1; transform: translateY(-4px); }
+  .hi-dot { position: absolute; right: 26px; bottom: 30px; width: 18px; height: 18px; border-radius: 50%; background: var(--accent); box-shadow: 0 0 0 4px rgba(255, 255, 255, .18); }
+  .intro-title { font-size: 34px; font-weight: 900; letter-spacing: -.5px; }
+  .intro-title span + span { color: var(--accent); }
+  .intro-sub { color: var(--text-2); font-size: 15px; line-height: 1.7; }
+  .age-note { font-size: 12px; color: var(--text-3); }
+  #login { background: var(--bg); }
+  .login-card { width: 100%; max-width: 440px; display: flex; flex-direction: column; gap: 18px; }
+  .brand { display: flex; align-items: center; gap: 10px; font-weight: 800; font-size: 18px; }
+  .brand-mark { width: 34px; height: 34px; border-radius: 10px; background: var(--primary); display: flex; align-items: center; justify-content: center; color: #fff; font-weight: 900; font-size: 15px; letter-spacing: -1px; }
+  .dev-banner { border: 1px dashed var(--warn); background: rgba(232,180,92,.07); color: var(--warn); border-radius: var(--radius-sm); padding: 10px 12px; font-size: 13px; line-height: 1.6; }
+  .account-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(130px, 1fr)); gap: 8px; }
+  .account { text-align: left; padding: 12px; border-radius: var(--radius-sm); background: var(--surface); border: 1px solid var(--line); }
+  .account:hover:not(:disabled) { border-color: var(--primary); }
+  .account b { display: block; font-size: 14px; }
+  .status-line { display: flex; align-items: center; gap: 8px; font-size: 13px; color: var(--text-2); }
+  .led { width: 8px; height: 8px; border-radius: 50%; background: var(--text-3); flex-shrink: 0; }
+  .led.ok { background: var(--ok); } .led.bad { background: var(--danger); } .led.wait { background: var(--warn); }
+
+  /* ── App shell ──────────────────────────────────────── */
+  #shell { height: 100dvh; display: grid; grid-template-rows: calc(var(--top-h) + env(safe-area-inset-top)) minmax(0, 1fr) calc(var(--nav-h) + env(safe-area-inset-bottom)); grid-template-areas: "top" "main" "nav"; }
+  .screen { padding-top: calc(24px + env(safe-area-inset-top)); padding-bottom: calc(24px + env(safe-area-inset-bottom)); }
+  /* App lock (native only): covers everything, also in the OS app switcher. */
+  #lock { position: fixed; inset: 0; z-index: 500; background: var(--bg); display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 18px; padding: 24px; text-align: center; }
+  #lock .hi-mark { width: 96px; height: 96px; border-radius: 26px; }
+  #lock .hi-word { font-size: 48px; letter-spacing: -2px; }
+  #lock .hi-dot { width: 12px; height: 12px; right: 17px; bottom: 20px; }
+  .topbar { padding-top: env(safe-area-inset-top) !important; }
+  .topbar { grid-area: top; display: flex; align-items: center; justify-content: space-between; padding: 0 12px 0 16px; border-bottom: 1px solid var(--line); background: var(--bg); }
+  .mode-tag { font-size: 11px; font-weight: 700; color: var(--warn); border: 1px solid rgba(232,180,92,.4); border-radius: 999px; padding: 2px 8px; }
+  main#main { grid-area: main; overflow-y: auto; overscroll-behavior: contain; }
+  .tabs { grid-area: nav; display: flex; background: var(--surface); border-top: 1px solid var(--line); padding-bottom: env(safe-area-inset-bottom); }
+  .tab { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 3px; font-size: 11px; font-weight: 600; color: var(--text-3); position: relative; }
+  .tab .icon { width: 22px; height: 22px; }
+  .tab[aria-current="page"] { color: var(--primary-text); }
+  .tab .dot { top: 6px; right: calc(50% - 22px); }
+  .tab-label-long { display: none; }
+  @media (min-width: 900px) {
+    #shell { grid-template-columns: 232px minmax(0, 1fr); grid-template-rows: var(--top-h) minmax(0, 1fr); grid-template-areas: "nav top" "nav main"; }
+    .tabs { flex-direction: column; justify-content: flex-start; gap: 4px; padding: 72px 12px 12px; border-top: none; border-right: 1px solid var(--line); }
+    .tab { flex: 0 0 auto; flex-direction: row; justify-content: flex-start; gap: 12px; padding: 12px 14px; border-radius: var(--radius-sm); font-size: 15px; }
+    .tab[aria-current="page"] { background: var(--primary-soft); }
+    .tab .dot { position: static; margin-left: auto; }
+    .tab-label-short { display: none; } .tab-label-long { display: inline; }
+  }
+  .view { max-width: 760px; margin: 0 auto; padding: 16px 16px 32px; display: flex; flex-direction: column; gap: 14px; }
+  .view.fill { height: 100%; padding-bottom: 0; gap: 10px; }
+  .view-head { display: flex; align-items: center; gap: 6px; }
+  .view-title { font-size: 22px; font-weight: 800; letter-spacing: -.3px; }
+  .view-sub { font-size: 13px; color: var(--text-2); margin-top: -8px; }
+  .back { margin-left: -8px; }
+  .section-label { font-size: 13px; font-weight: 700; color: var(--text-2); }
+  .card { background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius); padding: 14px 16px; }
+  .card.click { cursor: pointer; transition: border-color .15s; text-align: left; width: 100%; display: block; }
+  .card.click:hover { border-color: #4a4359; }
+  .list { display: flex; flex-direction: column; gap: 8px; }
+  .empty { text-align: center; padding: 36px 16px; color: var(--text-3); font-size: 14px; }
+  .error-box { border: 1px solid rgba(236,111,111,.4); background: rgba(236,111,111,.08); color: var(--danger); border-radius: var(--radius-sm); padding: 12px; font-size: 13px; display: flex; align-items: center; justify-content: space-between; gap: 10px; }
+  .skeleton { height: 76px; border-radius: var(--radius); background: linear-gradient(90deg, var(--surface) 0%, var(--surface-2) 50%, var(--surface) 100%); background-size: 200% 100%; animation: shimmer 1.2s infinite; }
+  @keyframes shimmer { to { background-position: -200% 0; } }
+  .search { display: flex; align-items: center; gap: 8px; padding: 0 12px; background: var(--surface-2); border: 1px solid var(--line); border-radius: 12px; }
+  .search input { flex: 1; background: none; border: none; outline: none; padding: 11px 0; min-width: 0; }
+  .search .icon { color: var(--text-3); width: 18px; height: 18px; }
+  .menu-row { display: flex; align-items: center; gap: 12px; padding: 14px 4px; border-bottom: 1px solid var(--line); width: 100%; text-align: left; }
+  .menu-row:last-child { border-bottom: none; }
+  .menu-row .icon { color: var(--primary-text); }
+
+  /* ── Rooms / live status ─────────────────────────────── */
+  .room-card .title { font-weight: 700; font-size: 15px; }
+  .stats4 { display: grid; grid-template-columns: repeat(4, 1fr); gap: 6px; margin-top: 10px; }
+  .stat { background: var(--surface-2); border-radius: 10px; padding: 8px 4px; text-align: center; }
+  .stat b { display: block; font-size: 18px; font-weight: 800; font-variant-numeric: tabular-nums; }
+  .stat span { font-size: 11px; color: var(--text-3); }
+  .stat.flash { animation: flash 1s ease-out; }
+  @keyframes flash { from { background: var(--primary); } }
+  .room-layout { position: relative; flex: 1; min-height: 0; display: flex; flex-direction: column; }
+  .tool-rail { position: absolute; right: 0; top: 8px; z-index: 5; display: flex; flex-direction: column; gap: 6px; }
+  .tool-rail .btn { padding: 8px 10px; font-size: 12px; background: rgba(36,33,45,.92); backdrop-filter: blur(6px); box-shadow: 0 4px 14px rgba(0,0,0,.35); }
+  .notice-bar { padding: 10px 12px; border-radius: var(--radius-sm); background: var(--surface-2); font-size: 13px; color: var(--text-2); display: flex; align-items: center; justify-content: space-between; gap: 10px; }
+  .conn { font-size: 11px; display: inline-flex; align-items: center; gap: 5px; color: var(--text-3); }
+
+  /* ── Chat ────────────────────────────────────────────── */
+  .chat { flex: 1; min-height: 0; display: flex; flex-direction: column; }
+  .msgs { flex: 1; overflow-y: auto; padding: 8px 96px 12px 0; display: flex; flex-direction: column; gap: 8px; }
+  .chat.no-rail .msgs { padding-right: 0; }
+  .msg { max-width: 78%; display: flex; flex-direction: column; gap: 3px; align-self: flex-start; }
+  .msg.mine { align-self: flex-end; align-items: flex-end; }
+  .msg .who { font-size: 12px; color: var(--text-2); font-weight: 600; }
+  .bubble { padding: 9px 13px; border-radius: 16px; border-top-left-radius: 6px; background: var(--surface-2); white-space: pre-wrap; word-break: break-word; }
+  .msg.mine .bubble { background: var(--primary); color: #fff; border-top-left-radius: 16px; border-top-right-radius: 6px; }
+  .msg .meta { font-size: 11px; color: var(--text-3); display: flex; gap: 6px; align-items: center; }
+  .msg.failed .bubble { background: transparent; border: 1px solid var(--danger); color: var(--text); }
+  .msg.sending .bubble { opacity: .6; }
+  .bubble img { display: block; max-width: 220px; max-height: 260px; border-radius: 10px; margin: -3px -7px; }
+  .img-ph { width: 180px; height: 120px; border-radius: 10px; background: var(--surface-3); display: flex; align-items: center; justify-content: center; font-size: 12px; color: var(--text-3); }
+  .composer { display: flex; align-items: flex-end; gap: 6px; padding: 10px 0 14px; border-top: 1px solid var(--line); background: var(--bg); }
+  .composer textarea { flex: 1; resize: none; max-height: 120px; min-height: 42px; padding: 10px 12px; border-radius: 12px; background: var(--surface-2); border: 1px solid var(--line); outline: none; }
+  .composer textarea:focus { border-color: var(--primary); }
+  .chat-blocked { padding: 14px; text-align: center; color: var(--text-2); font-size: 13px; border-top: 1px solid var(--line); }
+
+  /* ── Lounge ──────────────────────────────────────────── */
+  .post-title { font-weight: 700; font-size: 15px; }
+  .post-excerpt { font-size: 13px; color: var(--text-2); margin-top: 4px; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+  .post-meta { display: flex; gap: 10px; align-items: center; margin-top: 8px; font-size: 12px; color: var(--text-3); flex-wrap: wrap; }
+  .notice-card { border-color: rgba(130,94,208,.5); background: linear-gradient(135deg, rgba(130,94,208,.14), var(--surface)); }
+  .post-body { white-space: pre-wrap; word-break: break-word; line-height: 1.75; }
+  .comment { padding: 12px 0; border-bottom: 1px solid var(--line); }
+  .comment:last-child { border-bottom: none; }
+  .comment .secret-hidden { color: var(--text-3); font-size: 13px; }
+  .fab { position: sticky; bottom: 16px; align-self: flex-end; width: 52px; height: 52px; border-radius: 50%; background: var(--primary); color: #fff; display: flex; align-items: center; justify-content: center; box-shadow: 0 6px 20px rgba(130,94,208,.45); margin-top: -8px; }
+  .fab .icon { width: 24px; height: 24px; }
+
+  /* ── Places ──────────────────────────────────────────── */
+  .tab-row { display: flex; border-bottom: 1px solid var(--line); }
+  .tab-item { flex: 1; padding: 12px 4px; font-size: 14px; font-weight: 700; color: var(--text-3); border-bottom: 2px solid transparent; margin-bottom: -1px; }
+  .tab-item[aria-selected="true"] { color: var(--text); border-bottom-color: var(--primary); }
+  .cat-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
+  @media (min-width: 600px) { .cat-grid { grid-template-columns: repeat(6, 1fr); } }
+  .cat { aspect-ratio: 1.15; border-radius: 12px; border: 1px solid var(--line); display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 4px; font-size: 12px; font-weight: 700; padding: 6px; text-align: center; }
+  .cat .em { font-size: 24px; }
+  .cat[aria-pressed="true"] { border-color: var(--primary); box-shadow: inset 0 0 0 1px var(--primary); }
+  .place-card { display: flex; gap: 12px; align-items: stretch; }
+  .place-thumb { width: 84px; flex-shrink: 0; border-radius: 10px; display: flex; align-items: center; justify-content: center; font-size: 30px; min-height: 84px; }
+  .tags { display: flex; flex-wrap: wrap; gap: 4px; margin-top: 6px; }
+  .hours-table { width: 100%; border-collapse: collapse; font-size: 14px; }
+  .hours-table td { padding: 8px 4px; border-bottom: 1px solid var(--line); }
+  .hours-table td:first-child { color: var(--text-2); width: 48px; }
+
+  /* ── My ──────────────────────────────────────────────── */
+  .profile { display: flex; align-items: center; gap: 14px; }
+  .avatar { width: 56px; height: 56px; border-radius: 50%; background: var(--primary-soft); border: 2px solid var(--primary); display: flex; align-items: center; justify-content: center; font-size: 22px; font-weight: 800; color: var(--primary-text); flex-shrink: 0; }
+  .avatar.sm { width: 36px; height: 36px; font-size: 14px; border-width: 1px; }
+  .counts { display: grid; grid-template-columns: repeat(4, 1fr); }
+  .counts > div { text-align: center; border-right: 1px solid var(--line); }
+  .counts > div:last-child { border-right: none; }
+  .counts b { display: block; font-size: 20px; font-weight: 800; }
+  .counts span { font-size: 11px; color: var(--text-3); }
+
+  /* ── Sheet & toast ───────────────────────────────────── */
+  .sheet-back { position: fixed; inset: 0; background: rgba(0,0,0,.55); z-index: 200; display: flex; align-items: flex-end; justify-content: center; animation: fade .15s; }
+  .sheet { width: 100%; max-width: 560px; max-height: 88dvh; overflow-y: auto; background: var(--surface); border: 1px solid var(--line); border-bottom: none; border-radius: 20px 20px 0 0; padding: 8px 16px calc(20px + env(safe-area-inset-bottom)); animation: up .2s ease-out; }
+  .sheet-grip { width: 40px; height: 4px; border-radius: 2px; background: var(--line); margin: 4px auto 10px; }
+  .sheet-head { display: flex; align-items: center; justify-content: space-between; margin-bottom: 12px; }
+  .sheet-head h2 { font-size: 18px; font-weight: 800; }
+  @media (min-width: 900px) { .sheet-back { align-items: center; } .sheet { border-radius: 20px; border-bottom: 1px solid var(--line); } }
+  @keyframes fade { from { opacity: 0; } }
+  @keyframes up { from { transform: translateY(24px); opacity: .6; } }
+  #toasts { position: fixed; left: 50%; bottom: calc(var(--nav-h) + 16px); transform: translateX(-50%); z-index: 300; display: flex; flex-direction: column; gap: 8px; align-items: center; pointer-events: none; width: calc(100% - 32px); max-width: 420px; }
+  .toast { background: var(--surface-3); border: 1px solid var(--line); padding: 10px 14px; border-radius: 12px; font-size: 13px; box-shadow: 0 8px 24px rgba(0,0,0,.4); animation: up .2s; }
+  .toast.error { border-color: rgba(236,111,111,.5); color: #ffd6d6; }
+  .toast.ok { border-color: rgba(92,201,160,.5); }
+  .kv { display: flex; justify-content: space-between; padding: 10px 0; border-bottom: 1px solid var(--line); gap: 12px; }
+  .kv:last-child { border-bottom: none; }
+  .edit-row { display: grid; grid-template-columns: 1fr 1fr auto; gap: 6px; margin-bottom: 6px; }
+  .num-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 6px; }
+  .num-grid input { text-align: center; }
+  @media (max-width: 360px) { .view { padding-left: 12px; padding-right: 12px; } .msgs { padding-right: 84px; } }
+</style>
+</head>
+<body>
+
+<!-- ═════════ Intro (hi mark, logged-out) ═════════ -->
+<section id="intro" class="screen hidden" aria-label="시작" data-i18n-aria>
+  <button class="btn sm lang-btn lang-corner" data-lang-toggle></button>
+  <div class="intro-card">
+    <div class="hi-mark" role="img" aria-label="하이언니" data-i18n-aria>
+      <span class="hi-word">hi</span><span class="hi-dot" aria-hidden="true"></span>
+    </div>
+    <div>
+      <div class="intro-title"><span data-i18n>하이언니</span><span>.</span></div>
+      <p class="intro-sub" data-i18n-html="introSub">언니들끼리 편하게, 익명으로.<br>오늘의 현황과 이야기를 한곳에서.</p>
+    </div>
+    <button class="btn primary block" id="intro-start" data-i18n>시작하기</button>
+    <p class="age-note" data-i18n>만 19세 이상만 이용할 수 있어요.</p>
+  </div>
+</section>
+
+<!-- ═════════ Login ═════════ -->
+<section id="login" class="screen hidden" aria-label="로그인" data-i18n-aria>
+  <div class="login-card">
+    <div class="between">
+      <div class="brand"><div class="brand-mark">hi</div><span data-i18n>하이언니</span></div>
+      <div class="row"><button class="btn sm lang-btn" data-lang-toggle></button><button class="btn sm" id="login-back" data-i18n>처음으로</button></div>
+    </div>
+    <div>
+      <h1 style="font-size:26px;font-weight:900;line-height:1.35" data-i18n>다시 만나 반가워요.</h1>
+      <p class="muted small" style="margin-top:6px" data-i18n>휴대폰 본인인증 로그인은 아직 서버에 연결되지 않았습니다.</p>
+    </div>
+    <div class="dev-banner" data-i18n-html="devBanner">
+      <b>개발 환경 · 합성 데이터</b><br>
+      아래 합성 계정으로만 로그인할 수 있어요. 실제 회원 정보가 아닙니다.
+    </div>
+    <div class="status-line" id="api-status"><span class="led wait"></span><span data-i18n>API 확인 중…</span></div>
+    <div class="account-grid" id="accounts"></div>
+    <div id="login-error"></div>
+  </div>
+</section>
+
+<!-- ═════════ App ═════════ -->
+<div id="shell" class="hidden">
+  <header class="topbar">
+    <div class="row">
+      <div class="brand" style="font-size:16px"><div class="brand-mark" style="width:30px;height:30px">hi</div><span data-i18n>하이언니</span></div>
+      <span class="mode-tag" title="합성 데이터로 동작하는 개발 서버입니다" data-i18n data-i18n-title>개발 · 합성</span>
+    </div>
+    <div class="row" style="gap:2px">
+      <button class="btn sm lang-btn" data-lang-toggle></button>
+      <button class="icon-btn" id="bell" aria-label="알림" data-i18n-aria></button>
+    </div>
+  </header>
+  <main id="main" tabindex="-1"></main>
+  <nav class="tabs" id="tabs" aria-label="주요 메뉴" data-i18n-aria></nav>
+</div>
+
+<div id="lock" class="hidden" role="dialog" aria-modal="true" aria-label="앱 잠금" data-i18n-aria>
+  <div class="hi-mark" aria-hidden="true"><span class="hi-word">hi</span><span class="hi-dot"></span></div>
+  <div><b style="font-size:18px" data-i18n>하이언니가 잠겨 있어요</b><p class="muted small" style="margin-top:6px" data-i18n>Face ID, 지문 또는 휴대폰 비밀번호로 열 수 있어요.</p></div>
+  <button class="btn primary" id="unlock-btn" style="min-width:200px" data-i18n>잠금 해제</button>
+</div>
+<div id="sheet-root"></div>
+<div id="toasts" role="status" aria-live="polite"></div>
+
+<script>
+'use strict';
+/* ════════════════════════════════════════════════════════════════════
+   i18n — Korean (default) / English. Choosing a language saves it and reloads, so every
+   label (including the constant tables below) is built once in that language.
+   User content (posts, nicknames, store and place names) is never translated.
+   ════════════════════════════════════════════════════════════════════ */
+const LANG = (() => {
+  try {
+    const q = new URLSearchParams(location.search).get('lang');
+    if (q === 'en' || q === 'ko') { localStorage.setItem('hiunni.lang', q); return q; }
+    return localStorage.getItem('hiunni.lang') === 'en' ? 'en' : 'ko';
+  } catch { return 'ko'; }
+})();
+const LOCALE = LANG === 'en' ? 'en-US' : 'ko-KR';
+const EN = {
+ "방금": "just now",
+ "{n}분 전": "{n} min ago",
+ "{n}시간 전": "{n}h ago",
+ "{n}일 전": "{n}d ago",
+ "문의": "Ask",
+ "전체": "All",
+ "강남": "Gangnam",
+ "홍대": "Hongdae",
+ "잠실": "Jamsil",
+ "가게방": "Store room",
+ "일반방": "Open room",
+ "데일리톡": "Daily Talk",
+ "미참여": "Not joined",
+ "승인 대기": "Pending",
+ "참여 중": "Joined",
+ "거절됨": "Declined",
+ "나감": "Left",
+ "참여 제한": "Restricted",
+ "자유 수다": "Free talk",
+ "질문": "Questions",
+ "정보": "Tips",
+ "동행 찾기": "Find company",
+ "헤어 · 메이크업": "Hair · Makeup",
+ "홀복 · 렌탈": "Outfits · Rental",
+ "성형 · 시술": "Cosmetic · Clinic",
+ "네일 & 취미": "Nails & Hobbies",
+ "생활필수": "Essentials",
+ "놀거리 ZIP": "Fun ZIP",
+ "일": "Sun",
+ "월": "Mon",
+ "화": "Tue",
+ "수": "Wed",
+ "목": "Thu",
+ "금": "Fri",
+ "토": "Sat",
+ "API 서버에 연결할 수 없어요.": "Can't reach the server.",
+ "로그인이 필요해요.": "Please log in.",
+ "권한이 없어요.": "You don't have permission.",
+ "참여 중인 사람만 볼 수 있어요.": "Only members can see this.",
+ "대화 참여자만 볼 수 있어요.": "Only the people in this chat can see it.",
+ "종료된 방이에요.": "This room has closed.",
+ "정원이 가득 찼어요.": "This room is full.",
+ "차단 관계라서 진행할 수 없어요.": "You can't do this because one of you has blocked the other.",
+ "이 방에서 참여가 제한되었어요.": "You've been restricted from this room.",
+ "방 관리자만 할 수 있어요.": "Only the room manager can do this.",
+ "가게 운영자만 수정할 수 있어요.": "Only the store operator can edit this.",
+ "이미 대화 신청을 보냈어요.": "You've already sent a chat request.",
+ "상대가 먼저 신청을 보냈어요. 신청함에서 수락해 주세요.": "They already sent you a request. Accept it in your requests.",
+ "이미 1:1 대화가 있어요.": "You already have a 1:1 chat.",
+ "자기 자신에게는 신청할 수 없어요.": "You can't send a request to yourself.",
+ "같은 전송 키로 다른 내용이 전송되었어요.": "A different message was already sent with this send key.",
+ "사진은 10MB 이하만 올릴 수 있어요.": "Photos must be 10 MB or smaller.",
+ "JPG, PNG, WEBP 사진만 올릴 수 있어요.": "Only JPG, PNG and WEBP photos are allowed.",
+ "사진 파일 형식이 올바르지 않아요.": "This photo file is not valid.",
+ "입력값을 확인해 주세요.": "Please check what you entered.",
+ "이미 처리된 요청이에요.": "This request has already been handled.",
+ "요청에 실패했어요.": "Something went wrong.",
+ "세션이 만료되었어요. 다시 로그인해 주세요.": "Your session expired. Please log in again.",
+ "연결 중": "Connecting",
+ "실시간": "Live",
+ "재연결 중": "Reconnecting",
+ "연결 종료": "Disconnected",
+ "닫기": "Close",
+ "다시 시도": "Try again",
+ "취소": "Cancel",
+ "찜": "Saved",
+ "더 보기": "Load more",
+ "실시간현황": "Live Status",
+ "현황": "Live",
+ "라운지": "Lounge",
+ "플레이스": "Places",
+ "마이페이지": "My Page",
+ "마이": "My",
+ "뒤로": "Back",
+ "사진 불러오는 중…": "Loading photo…",
+ "첨부 사진": "Attached photo",
+ "볼 수 없는 사진": "Photo not available",
+ "사진을 불러오지 못했어요": "Couldn't load the photo",
+ "첫 메시지를 남겨보세요.": "Say hello first.",
+ "메시지를 입력하세요": "Type a message",
+ "메시지 입력": "Message",
+ "사진 보내기": "Send a photo",
+ "전송": "Send",
+ "읽음": "Read",
+ "익명": "Anonymous",
+ "전송 실패 · ": "Not sent · ",
+ "다시 보내기": "Resend",
+ "삭제": "Delete",
+ "전송 중…": "Sending…",
+ "사진 업로드 중…": "Uploading photo…",
+ "초중": "Choice",
+ "엔트리": "Entry",
+ "대기": "Waiting",
+ "빈방": "Vacant",
+ "주제 검색": "Search topics",
+ "가게·방 이름 검색": "Search stores and rooms",
+ "검색": "Search",
+ "현황 미등록": "No status yet",
+ "현황 {t}": "Updated {t}",
+ "참여 {n}명": "{n} joined",
+ "익명 오픈톡": "Anonymous Open Talk",
+ "종료": "Closed",
+ "승인제": "Approval needed",
+ "바로 참여": "Open to join",
+ "찜한 방이 없어요.": "No saved rooms.",
+ "조건에 맞는 방이 없어요.": "No rooms match.",
+ "주제별로 모여 가볍게 이야기해요.": "Drop into topic rooms and chat casually.",
+ "초이스톡 · 가게별 초중·엔트리·대기·빈방을 실시간으로 확인해요.": "ChoiceTalk · See each store's choice, entry, waiting and vacant counts live.",
+ "♡ 찜": "♡ Saved",
+ "불러오는 중…": "Loading…",
+ "관리": "Manage",
+ "더보기": "More",
+ "내 닉네임: ": "My nickname: ",
+ "가게방 도구": "Store room tools",
+ "가격표": "Prices",
+ "용어": "Terms",
+ "담당 찾기": "Find staff",
+ "빈방 기록": "Vacancy log",
+ "종료된 방이에요. 대화 기록은 열람할 수 없어요.": "This room has closed. Its chat history isn't available.",
+ "참여가 승인되었어요.": "You've been approved to join.",
+ "참여 신청 상태가 바뀌었어요.": "Your join request changed.",
+ "익명 오픈톡이에요. 이 방에서는 자동 닉네임으로 표시돼요.": "This is anonymous Open Talk. Everyone shows up with an automatic nickname here.",
+ "방이 종료되었어요.": "The room has closed.",
+ "참여 권한이 해제되었어요.": "You're no longer a member of this room.",
+ "이 방은 방장의 승인 후 참여할 수 있어요.": "The room manager has to approve you before you can join.",
+ "참여하면 바로 대화할 수 있어요.": "Join to start chatting right away.",
+ "참여 신청을 보냈어요. 방장의 승인을 기다리는 중이에요.": "Request sent. Waiting for the room manager to approve.",
+ "참여 신청이 거절되었어요. 다시 신청할 수 있어요.": "Your request was declined. You can ask again.",
+ "방을 나갔어요. 다시 참여할 수 있어요.": "You left this room. You can join again.",
+ "참여했어요.": "You joined.",
+ "참여를 신청했어요.": "Join request sent.",
+ "참여 신청": "Request to join",
+ "참여하기": "Join",
+ "신청 취소": "Cancel request",
+ "방 메뉴": "Room menu",
+ "방 나가기": "Leave room",
+ "방을 나가면 대화를 더 이상 볼 수 없어요.": "After leaving you won't see this chat anymore.",
+ "나가기": "Leave",
+ "등록된 가격표가 없어요.": "No prices yet.",
+ "“문의”는 금액 미정이며 0원과 다릅니다.": "“Ask” means no price is set; it is not the same as ₩0.",
+ "가격표 수정": "Edit prices",
+ "항목": "Item",
+ "금액 (비우면 문의)": "Price (blank = Ask)",
+ "금액": "Price",
+ "가격표를 저장했어요.": "Prices saved.",
+ "저장": "Save",
+ "+ 항목": "+ Item",
+ "등록된 용어가 없어요.": "No terms yet.",
+ "빈방 수": "Vacant rooms",
+ "메모 (예: 22시 기준)": "Note (e.g. as of 22:00)",
+ "메모": "Note",
+ "빈방 기록하기": "Log vacancy",
+ "빈방 수를 0 이상 숫자로 입력해 주세요.": "Enter the number of vacant rooms (0 or more).",
+ "기록했어요. 다른 회원 화면에도 바로 반영돼요.": "Logged. Everyone else sees it right away.",
+ "기록": "Log",
+ "최근 빈방": "Latest vacancy",
+ "기록 없음": "No records",
+ "이전 기록": "Earlier records",
+ "최근 접속 {t}": "Last seen {t}",
+ "접속 기록 없음": "Never seen",
+ "최근 접속 비공개": "Last seen hidden",
+ "1:1 신청": "1:1 request",
+ "등록된 담당자가 없어요.": "No staff listed yet.",
+ "방 관리": "Manage room",
+ "승인": "Approve",
+ "거절": "Decline",
+ "대기 중인 신청이 없어요.": "No pending requests.",
+ "승인했어요.": "Approved.",
+ "거절했어요.": "Declined.",
+ "현황을 업데이트했어요.": "Status updated.",
+ "현황 저장": "Save status",
+ "실시간 현황 (비우면 미등록)": "Live status (blank = not reported)",
+ "방 종료": "Close room",
+ "방을 종료하면 모든 참여자의 연결이 끊어지고 대화를 열람할 수 없어요.": "Closing the room disconnects everyone, and the chat can no longer be viewed.",
+ "공지": "Notice",
+ "댓글 ": "Comments ",
+ "제목·내용 검색": "Search titles and posts",
+ "게시글 검색": "Search posts",
+ "아직 글이 없어요. 첫 글을 남겨보세요.": "No posts yet. Write the first one.",
+ "익명으로 이야기하고 공감을 나눠요.": "Talk anonymously and share the love.",
+ "최신순": "Newest",
+ "공감순": "Most liked",
+ "등록순": "Oldest",
+ "요약": "Preview",
+ "제목만": "Titles only",
+ "글쓰기": "Write",
+ "카테고리": "Category",
+ "제목": "Title",
+ "내용을 입력하세요": "Write your post",
+ "내용": "Post",
+ "제목과 내용을 입력해 주세요.": "Please enter a title and a post.",
+ "글을 올렸어요.": "Posted.",
+ "등록": "Post",
+ " 공감 ": " Like ",
+ "첫 댓글을 남겨보세요.": "Be the first to comment.",
+ "댓글을 입력하세요": "Write a comment",
+ "댓글": "Comment",
+ "내 글": "My post",
+ " 1:1 대화 신청": " Request 1:1 chat",
+ "신고": "Report",
+ "차단": "Block",
+ "글 삭제": "Delete post",
+ "삭제한 글은 되돌릴 수 없어요.": "A deleted post can't be brought back.",
+ "삭제했어요.": "Deleted.",
+ "비밀 댓글 (글쓴이와 나만 보기)": "Secret comment (only the author and I can see it)",
+ "비밀 댓글입니다.": "This is a secret comment.",
+ "비밀": "Secret",
+ "{name}님에게 익명 1:1 대화를 신청해요. 상대가 수락하기 전에는 메시지를 보낼 수 없어요.": "Send {name} an anonymous 1:1 chat request. You can't message them until they accept.",
+ "첫 인사를 남겨주세요 (선택)": "Say hello (optional)",
+ "신청 메시지": "Request message",
+ "대화를 신청했어요. 상대가 수락하면 대화할 수 있어요.": "Request sent. You can chat once they accept.",
+ "신청 보내기": "Send request",
+ "1:1 대화 신청": "1:1 chat request",
+ "신고 사유": "Reason",
+ "사유를 입력해 주세요.": "Please give a reason.",
+ "이미 신고한 항목이에요.": "You've already reported this.",
+ "신고를 접수했어요.": "Report received.",
+ "신고하기": "Report",
+ "{name}님을 차단하면 서로 1:1 대화와 신청이 막히고, 상대의 글과 댓글이 보이지 않아요.": "If you block {name}, 1:1 chats and requests between you stop, and you won't see their posts or comments.",
+ "차단했어요.": "Blocked.",
+ "영업시간 미등록": "Hours unknown",
+ "선택일 휴무": "Closed that day",
+ "지금 영업 중": "Open now",
+ "24시": "24h",
+ "심야": "Late night",
+ "토·일 영업": "Open weekends",
+ "심야 · 24시": "Late night · 24h",
+ "주말 영업": "Weekends",
+ "영업 시간대": "Opening hours",
+ "기준 날짜": "Date",
+ "추천(합성)": "Recommended (test)",
+ "찜한 장소가 없어요.": "No saved places.",
+ "조건에 맞는 장소가 없어요.": "No places match.",
+ "헤메·홀복·시술부터 놀거리까지. 영업 시간은 날짜 기준(KST)으로 판단해요.": "From hair, makeup and outfits to things to do. Opening hours are checked for the chosen date (KST).",
+ "장소 정보": "Place details",
+ "영업시간이 등록되지 않았어요. (휴무와 다릅니다)": "No opening hours registered (this is not the same as closed).",
+ " (다음날)": " (next day)",
+ "휴무": "Closed",
+ "임시 휴무: ": "Temporarily closed: ",
+ "{date} 기준 · 심야는 22:00~다음날 06:00 영업 여부로 판단해요.": "As of {date} · Late night means open between 22:00 and 06:00 the next day.",
+ "일반": "Member",
+ "운영자": "Operator",
+ "관리자": "Admin",
+ "합성 계정 · ": "Test account · ",
+ "안 읽은 알림": "Unread",
+ "받은 신청": "Received",
+ "작성글": "Posts",
+ "1:1 대화": "1:1 chats",
+ "대화 신청함": "Chat requests",
+ "알림": "Notifications",
+ "찜한 장소": "Saved places",
+ "알림 설정": "Notification settings",
+ "최근 접속 공개": "Show last seen",
+ "담당자 카드에 최근 접속 시각을 보여줘요.": "Shows when you were last active on staff cards.",
+ "차단 목록": "Blocked people",
+ "로그아웃": "Log out",
+ "탈퇴 (합성 계정)": "Delete account (test account)",
+ "이 합성 계정을 비활성화하고 모든 세션을 종료해요. 실제 운영 데이터 삭제가 아닙니다. 다시 쓰려면 개발 DB를 초기화해야 해요.": "This deactivates the test account and ends all its sessions. It does not delete any real data. To use it again, reset the dev database.",
+ "탈퇴": "Delete account",
+ "탈퇴 처리되었어요.": "Account deleted.",
+ "보낸 신청": "Sent",
+ "수락": "Accept",
+ "받은 신청이 없어요.": "No requests received.",
+ "보낸 신청이 없어요.": "No requests sent.",
+ "알 수 없음": "Unknown",
+ "게시글에서 신청 · ": "From a post · ",
+ "수락했어요. 이제 대화할 수 있어요.": "Accepted. You can chat now.",
+ "신청을 취소했어요.": "Request cancelled.",
+ "대화 열기": "Open chat",
+ "사진": "Photo",
+ "아직 메시지가 없어요.": "No messages yet.",
+ "수락된 대화가 없어요. 라운지 글이나 담당자 카드에서 대화를 신청해 보세요.": "No accepted chats yet. Send a request from a Lounge post or a staff card.",
+ "대화 메뉴": "Chat menu",
+ "차단한 상대와는 대화할 수 없어요.": "You can't chat with someone you blocked.",
+ "익명 대화예요. 수락한 두 사람만 볼 수 있어요.": "This chat is anonymous. Only the two of you can see it.",
+ "차단되어 대화가 중단되었어요.": "This chat stopped because of a block.",
+ "모두 읽음": "Mark all read",
+ "알림이 없어요.": "No notifications.",
+ "비밀 댓글과 1:1 메시지 내용은 알림에 표시되지 않아요.": "Secret comments and 1:1 messages never appear in notifications.",
+ "방해 금지 시작": "Quiet hours start",
+ "방해 금지 종료": "Quiet hours end",
+ "저장했어요.": "Saved.",
+ "실제 휴대폰 푸시(FCM/APNs) 발송은 아직 연결되지 않았어요. 설정은 서버에 저장되고 알림함에는 바로 반영돼요.": "Push to phones (FCM/APNs) isn't connected yet. Settings are saved on the server and apply to your inbox right away.",
+ "댓글 알림": "Comments",
+ "내 글에 댓글이 달리면": "When someone comments on your post",
+ "1:1 대화 알림": "1:1 chats",
+ "신청·수락·새 메시지": "Requests, accepts and new messages",
+ "찜 알림": "Saved",
+ "찜한 방·장소 소식": "Updates on saved rooms and places",
+ "알림 내용 숨기기": "Hide notification content",
+ "푸시에 “새 알림이 있습니다”로만 표시": "Push shows only “You have a new notification”",
+ "방해 금지 시간": "Quiet hours",
+ "이 시간에는 푸시를 보내지 않아요 (KST)": "No push during these hours (KST)",
+ "차단을 해제했어요.": "Unblocked.",
+ "해제": "Unblock",
+ "차단한 사람이 없어요.": "You haven't blocked anyone.",
+ "일반 회원": "Member",
+ "가게 운영자": "Store operator",
+ "API 확인 중… ": "Checking API… ",
+ "API 연결됨 · {env} · {api}": "API connected · {env} · {api}",
+ "API에 연결할 수 없어요 · {api}": "Can't reach the API · {api}",
+ "backend 폴더에서 npm run dev 를 실행한 뒤 http://localhost:8787 로 접속하세요.": "Run npm run dev in the backend folder, then open http://localhost:8787.",
+ "이 서버는 개발용 로그인이 꺼져 있어요. 실서비스 로그인은 아직 연결되지 않았어요.": "Dev login is turned off on this server, and the real login isn't connected yet.",
+ "이 기기에서는 잠금을 쓸 수 없어요. 휴대폰 화면 잠금(지문·Face ID·비밀번호)을 먼저 설정해 주세요.": "App lock isn't available on this device. Set up a screen lock (fingerprint, Face ID or passcode) first.",
+ "인증이 취소되었어요.": "Authentication cancelled.",
+ "하이언니": "HIUNNI",
+ "비밀번호 사용": "Use passcode",
+ "앱 잠금 해제": "Unlock app",
+ "푸시 알림을 켜지 못했어요.": "Couldn't turn on push notifications.",
+ "앱 잠금": "App lock",
+ "Face ID·지문·휴대폰 비밀번호로 앱을 잠가요.": "Lock the app with Face ID, fingerprint or your phone passcode.",
+ "앱 잠금 켜기": "Turn on app lock",
+ "앱 잠금을 켰어요.": "App lock on.",
+ "앱 잠금을 껐어요.": "App lock off.",
+ "로그아웃했어요.": "Logged out.",
+ "서버에 연결할 수 없어요. 잠시 후 다시 시도해 주세요.": "Can't reach the server. Please try again shortly.",
+ "새 1:1 대화 신청": "New 1:1 chat request",
+ "1:1 대화 신청이 수락되었습니다": "Your 1:1 chat request was accepted",
+ "새 메시지": "New message",
+ "내 글에 비밀 댓글이 달렸습니다": "New secret comment on your post",
+ "내 글에 새 댓글이 달렸습니다": "New comment on your post",
+ "시작하기": "Get started",
+ "만 19세 이상만 이용할 수 있어요.": "For adults 19 and over only.",
+ "처음으로": "Back",
+ "다시 만나 반가워요.": "Welcome back.",
+ "휴대폰 본인인증 로그인은 아직 서버에 연결되지 않았습니다.": "Phone verification login isn't connected to the server yet.",
+ "API 확인 중…": "Checking API…",
+ "개발 · 합성": "Dev · Test data",
+ "합성 데이터로 동작하는 개발 서버입니다": "Development server running on test data",
+ "주요 메뉴": "Main menu",
+ "하이언니가 잠겨 있어요": "HIUNNI is locked",
+ "Face ID, 지문 또는 휴대폰 비밀번호로 열 수 있어요.": "Unlock with Face ID, fingerprint or your phone passcode.",
+ "잠금 해제": "Unlock",
+ "시작": "Start",
+ "로그인": "Log in",
+ "앱 잠금 화면": "App lock",
+ "언어": "Language"
+};
+/** t('참여 {n}명', { n: 3 }) — Korean source text is the key; missing entries fall back to Korean. */
+function t(ko, vars) {
+  let out = LANG === 'en' ? (EN[ko] ?? ko) : ko;
+  if (vars) out = out.replace(/\{(\w+)\}/g, (m, k) => (k in vars ? String(vars[k]) : m));
+  return out;
+}
+/** Fixed Korean notification text written by the server. */
+function trServer(text) {
+  if (LANG !== 'en' || !text) return text;
+  if (EN[text]) return EN[text];
+  let m = /^찜한 가게 현황: (.+)$/.exec(text);
+  if (m) return 'Saved store update: ' + m[1];
+  m = /^대기 (\S+) · 빈방 (\S+)$/.exec(text);
+  if (m) return `Waiting ${m[1]} · Vacant ${m[2]}`;
+  return text;
+}
+const STATIC_HTML_EN = {
+  introSub: 'Talk freely and anonymously.<br>Live store status and stories in one place.',
+  devBanner: '<b>Development · test data</b><br>You can only log in with the test accounts below. They are not real members.',
+};
+function setLang(lang) {
+  try { localStorage.setItem('hiunni.lang', lang); } catch {}
+  location.reload();
+}
+function applyStaticI18n() {
+  document.documentElement.lang = LANG;
+  for (const b of document.querySelectorAll('[data-lang-toggle]')) {
+    b.textContent = LANG === 'en' ? '한국어' : 'EN';
+    b.setAttribute('aria-label', LANG === 'en' ? '한국어로 보기' : 'View in English');
+    b.onclick = () => setLang(LANG === 'en' ? 'ko' : 'en');
+  }
+  if (LANG !== 'en') return;
+  for (const el of document.querySelectorAll('[data-i18n]')) el.textContent = t(el.textContent.trim());
+  for (const el of document.querySelectorAll('[data-i18n-aria]')) el.setAttribute('aria-label', t(el.getAttribute('aria-label')));
+  for (const el of document.querySelectorAll('[data-i18n-title]')) el.setAttribute('title', t(el.getAttribute('title')));
+  for (const el of document.querySelectorAll('[data-i18n-html]')) el.innerHTML = STATIC_HTML_EN[el.dataset.i18nHtml]; // trusted constants
+}
+applyStaticI18n();
+
+
+/* ════════════════════════════════════════════════════════════════════
+   Utilities
+   ════════════════════════════════════════════════════════════════════ */
+const $ = (sel, el = document) => el.querySelector(sel);
+
+// Let append/replaceChildren take `cond && node` like h() does: skip null/undefined/false
+// instead of rendering the text "false". Scoped to this page's own script.
+for (const name of ['append', 'replaceChildren']) {
+  const native = Element.prototype[name];
+  Element.prototype[name] = function (...kids) {
+    return native.apply(this, kids.filter(k => k != null && k !== false));
+  };
+}
+
+/** Safe DOM builder: strings are always text nodes (no innerHTML for data). */
+function h(tag, props, ...kids) {
+  const el = document.createElement(tag);
+  for (const [k, v] of Object.entries(props || {})) {
+    if (v == null || v === false) continue;
+    if (k === 'class') el.className = v;
+    else if (k === 'style') el.style.cssText = v;
+    else if (k.startsWith('on') && typeof v === 'function') el.addEventListener(k.slice(2), v);
+    else if (k === 'value') el.value = v;
+    else el.setAttribute(k, v === true ? '' : v);
+  }
+  for (const c of kids.flat(Infinity)) {
+    if (c == null || c === false) continue;
+    el.append(c instanceof Node ? c : String(c));
+  }
+  return el;
+}
+
+const ICONS = {
+  live: '<path d="M3 12h4l3-8 4 16 3-8h4"/>',
+  chat: '<path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>',
+  board: '<rect x="3" y="4" width="18" height="16" rx="2"/><path d="M7 9h10M7 13h10M7 17h6"/>',
+  pin: '<path d="M12 21s-7-6.2-7-11.5A7 7 0 0 1 19 9.5C19 14.8 12 21 12 21z"/><circle cx="12" cy="9.5" r="2.5"/>',
+  user: '<path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/>',
+  bell: '<path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.7 21a2 2 0 0 1-3.4 0"/>',
+  back: '<path d="M15 18l-6-6 6-6"/>',
+  search: '<circle cx="11" cy="11" r="7"/><path d="M21 21l-4.3-4.3"/>',
+  heart: '<path d="M20.8 4.6a5.5 5.5 0 0 0-7.8 0L12 5.7l-1-1.1a5.5 5.5 0 0 0-7.8 7.8l1 1.1L12 21l7.8-7.5 1-1.1a5.5 5.5 0 0 0 0-7.8z"/>',
+  heartFill: '<path fill="currentColor" d="M20.8 4.6a5.5 5.5 0 0 0-7.8 0L12 5.7l-1-1.1a5.5 5.5 0 0 0-7.8 7.8l1 1.1L12 21l7.8-7.5 1-1.1a5.5 5.5 0 0 0 0-7.8z"/>',
+  plus: '<path d="M12 5v14M5 12h14"/>',
+  send: '<path d="M22 2L11 13M22 2l-7 20-4-9-9-4z"/>',
+  image: '<rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><path d="M21 15l-5-5L5 21"/>',
+  more: '<circle cx="5" cy="12" r="1"/><circle cx="12" cy="12" r="1"/><circle cx="19" cy="12" r="1"/>',
+  lock: '<rect x="4" y="11" width="16" height="10" rx="2"/><path d="M8 11V7a4 4 0 0 1 8 0v4"/>',
+  inbox: '<path d="M22 12h-6l-2 3h-4l-2-3H2"/><path d="M5.5 5h13L22 12v6a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2v-6z"/>',
+  settings: '<circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z"/>',
+  shield: '<path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>',
+  logout: '<path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4M16 17l5-5-5-5M21 12H9"/>',
+  x: '<path d="M18 6L6 18M6 6l12 12"/>',
+};
+/** ICONS are trusted constants, so innerHTML is safe here. */
+function icon(name, cls = '') {
+  const s = h('span', { class: 'icon ' + cls, 'aria-hidden': 'true' });
+  s.innerHTML = `<svg viewBox="0 0 24 24">${ICONS[name] || ''}</svg>`;
+  return s;
+}
+
+const KST = { timeZone: 'Asia/Seoul' };
+function ago(iso) {
+  if (!iso) return '';
+  const d = new Date(iso);
+  const s = (Date.now() - d.getTime()) / 1000;
+  if (s < 60) return t('방금');
+  if (s < 3600) return t('{n}분 전', { n: Math.floor(s / 60) });
+  if (s < 86400) return t('{n}시간 전', { n: Math.floor(s / 3600) });
+  if (s < 86400 * 7) return t('{n}일 전', { n: Math.floor(s / 86400) });
+  return d.toLocaleDateString(LOCALE, { ...KST, year: '2-digit', month: '2-digit', day: '2-digit' });
+}
+const clock = iso => new Date(iso).toLocaleTimeString(LOCALE, { ...KST, hour: '2-digit', minute: '2-digit' });
+const todayKst = () => new Date(Date.now() + 9 * 3600e3).toISOString().slice(0, 10);
+const newKey = () => (crypto.randomUUID ? crypto.randomUUID() : String(Math.random()).slice(2) + Date.now()).replace(/-/g, '');
+const won = n => (n == null ? t('문의') : LANG === 'en' ? '₩' + n.toLocaleString('en-US') : n.toLocaleString('ko-KR') + '원');
+const numOrDash = n => (n == null ? '—' : String(n));
+const qs = obj => {
+  const p = new URLSearchParams();
+  for (const [k, v] of Object.entries(obj)) if (v !== undefined && v !== null && v !== '' && v !== false) p.set(k, v);
+  const s = p.toString();
+  return s ? '?' + s : '';
+};
+
+const REGIONS = { '': t('전체'), gangnam: t('강남'), hongdae: t('홍대'), jamsil: t('잠실') };
+const ROOM_KIND = { store: t('가게방'), general: t('일반방'), daily: t('데일리톡') };
+const MEMBER_STATE = {
+  none: [t('미참여'), ''], pending: [t('승인 대기'), 'warn'], active: [t('참여 중'), 'ok'],
+  rejected: [t('거절됨'), 'danger'], left: [t('나감'), ''], blocked: [t('참여 제한'), 'danger'],
+};
+const LOUNGE_CATS = { '': t('전체'), free: t('자유 수다'), question: t('질문'), info: t('정보'), together: t('동행 찾기') };
+const PLACE_CATS = [ // 의뢰서 플레이스 분류
+  ['hair', t('헤어 · 메이크업'), '💇', 'linear-gradient(135deg,#3a2350,#1d1428)'],
+  ['rental', t('홀복 · 렌탈'), '👗', 'linear-gradient(135deg,#40233a,#221422)'],
+  ['clinic', t('성형 · 시술'), '🩺', 'linear-gradient(135deg,#1f2c48,#141a2a)'],
+  ['nail', t('네일 & 취미'), '💅', 'linear-gradient(135deg,#1f3a3a,#122222)'],
+  ['living', t('생활필수'), '🧴', 'linear-gradient(135deg,#3d3620,#221e12)'],
+  ['fun', t('놀거리 ZIP'), '🎡', 'linear-gradient(135deg,#25392a,#141f17)'],
+];
+const PLACE_CAT = Object.fromEntries(PLACE_CATS.map(c => [c[0], c]));
+const WEEKDAYS = [t('일'), t('월'), t('화'), t('수'), t('목'), t('금'), t('토')];
+
+/* ════════════════════════════════════════════════════════════════════
+   API client
+   ════════════════════════════════════════════════════════════════════ */
+const API = (() => {
+  // Native app builds inject HIUNNI_CONFIG (capacitor/scripts/build-web.mjs).
+  if (window.HIUNNI_CONFIG?.apiBase) return window.HIUNNI_CONFIG.apiBase;
+  const q = new URLSearchParams(location.search).get('api');
+  if (q) return q.replace(/\/+$/, '');
+  return location.protocol.startsWith('http') ? location.origin : 'http://localhost:8787';
+})();
+
+const S = {
+  token: null,
+  user: null,
+  epoch: 0,          // bumps on logout/account change; late responses from older epochs are dropped
+  tab: 'live',
+  stack: [],         // [{ render, cleanup }]
+  counts: null,
+  mediaUrls: new Map(),
+};
+
+class ApiError extends Error {
+  constructor(status, code, message) { super(message || code); this.status = status; this.code = code; }
+}
+class Stale extends Error {}
+
+const ERROR_TEXT = {
+  network: t('API 서버에 연결할 수 없어요.'),
+  unauthenticated: t('로그인이 필요해요.'),
+  forbidden: t('권한이 없어요.'),
+  not_a_member: t('참여 중인 사람만 볼 수 있어요.'),
+  not_a_participant: t('대화 참여자만 볼 수 있어요.'),
+  room_closed: t('종료된 방이에요.'),
+  room_full: t('정원이 가득 찼어요.'),
+  blocked: t('차단 관계라서 진행할 수 없어요.'),
+  blocked_from_room: t('이 방에서 참여가 제한되었어요.'),
+  manager_only: t('방 관리자만 할 수 있어요.'),
+  store_operator_only: t('가게 운영자만 수정할 수 있어요.'),
+  request_already_pending: t('이미 대화 신청을 보냈어요.'),
+  reverse_request_pending: t('상대가 먼저 신청을 보냈어요. 신청함에서 수락해 주세요.'),
+  conversation_exists: t('이미 1:1 대화가 있어요.'),
+  cannot_dm_self: t('자기 자신에게는 신청할 수 없어요.'),
+  request_id_conflict: t('같은 전송 키로 다른 내용이 전송되었어요.'),
+  too_large: t('사진은 10MB 이하만 올릴 수 있어요.'),
+  unsupported_media_type: t('JPG, PNG, WEBP 사진만 올릴 수 있어요.'),
+  content_mismatch: t('사진 파일 형식이 올바르지 않아요.'),
+  validation_failed: t('입력값을 확인해 주세요.'),
+  invalid_transition: t('이미 처리된 요청이에요.'),
+};
+const errText = e => (e instanceof ApiError ? ERROR_TEXT[e.code] || e.message || t('요청에 실패했어요.') : t('요청에 실패했어요.'));
+
+async function api(method, path, body, opts = {}) {
+  const epoch = S.epoch;
+  const headers = {};
+  if (S.token) headers.Authorization = 'Bearer ' + S.token;
+  let payload;
+  if (opts.raw) { payload = opts.raw; headers['Content-Type'] = opts.contentType; }
+  else if (body !== undefined) { payload = JSON.stringify(body); headers['Content-Type'] = 'application/json'; }
+  let res;
+  try {
+    res = await fetch(API + path, { method, headers, body: payload });
+  } catch {
+    if (epoch !== S.epoch) throw new Stale();
+    throw new ApiError(0, 'network');
+  }
+  if (epoch !== S.epoch) throw new Stale(); // response belongs to a previous session
+  const data = res.status === 204 ? null : await res.json().catch(() => null);
+  if (res.status === 401 && S.token && !opts.noAuthRedirect) {
+    endSession(t('세션이 만료되었어요. 다시 로그인해 주세요.'));
+    throw new Stale();
+  }
+  if (!res.ok) throw new ApiError(res.status, data?.error?.code || 'http_' + res.status, data?.error?.message);
+  return data;
+}
+
+/* ════════════════════════════════════════════════════════════════════
+   Realtime (WebSocket via single-use ticket, auto-reconnect)
+   ════════════════════════════════════════════════════════════════════ */
+class Live {
+  constructor(channel, { onEvent, onReady, onState } = {}) {
+    Object.assign(this, { channel, onEvent: onEvent || (() => {}), onReady, onState, retry: 0, closed: false, epoch: S.epoch });
+    this.connect();
+  }
+  async connect() {
+    if (this.closed || this.epoch !== S.epoch) return;
+    this.onState?.('connecting');
+    let ticketRes;
+    try {
+      ticketRes = await api('POST', '/realtime/tickets', { channel: this.channel });
+    } catch (e) {
+      if (e instanceof Stale || this.closed) return;
+      if (e.status === 403) { this.closed = true; this.onEvent({ type: 'revoked', reason: e.code }); return; }
+      return this.schedule();
+    }
+    if (this.closed) return;
+    const ws = new WebSocket(API.replace(/^http/, 'ws') + '/realtime/ws?ticket=' + encodeURIComponent(ticketRes.ticket));
+    this.ws = ws;
+    ws.onmessage = e => {
+      if (e.data === 'pong') return;
+      let ev;
+      try { ev = JSON.parse(e.data); } catch { return; }
+      if (ev.type === 'ready') { this.retry = 0; this.onState?.('live'); this.onReady?.(); return; }
+      if (ev.type === 'revoked') this.closed = true;
+      this.onEvent(ev);
+    };
+    ws.onclose = e => {
+      clearInterval(this.ping);
+      if (this.closed) { this.onState?.('closed'); return; }
+      if (e.code === 4003) { this.closed = true; this.onEvent({ type: 'revoked', reason: e.reason }); return; }
+      this.onState?.('reconnecting');
+      this.schedule();
+    };
+    this.ping = setInterval(() => ws.readyState === 1 && ws.send('ping'), 25000);
+  }
+  schedule() {
+    const delay = Math.min(10000, 1000 * 2 ** this.retry++);
+    this.timer = setTimeout(() => this.connect(), delay);
+  }
+  close() {
+    this.closed = true;
+    clearTimeout(this.timer);
+    clearInterval(this.ping);
+    try { this.ws?.close(1000); } catch {}
+  }
+}
+
+function connBadge() {
+  const el = h('span', { class: 'conn' }, h('span', { class: 'led wait' }), t('연결 중'));
+  return {
+    el,
+    set(state) {
+      const map = { connecting: ['wait', t('연결 중')], live: ['ok', t('실시간')], reconnecting: ['wait', t('재연결 중')], closed: ['', t('연결 종료')] };
+      const [cls, text] = map[state] || map.closed;
+      el.replaceChildren(h('span', { class: 'led ' + cls }), text);
+    },
+  };
+}
+
+/* ════════════════════════════════════════════════════════════════════
+   UI primitives: toast, sheet, states
+   ════════════════════════════════════════════════════════════════════ */
+function toast(msg, kind = '') {
+  const node = h('div', { class: 'toast ' + kind }, msg);
+  $('#toasts').append(node);
+  setTimeout(() => node.remove(), 3200);
+}
+
+let sheetCleanup = null;
+function openSheet(title, content, { onClose } = {}) {
+  closeSheet();
+  const back = h('div', { class: 'sheet-back', onclick: e => e.target === back && closeSheet() });
+  const sheet = h('div', { class: 'sheet', role: 'dialog', 'aria-modal': 'true', 'aria-label': title },
+    h('div', { class: 'sheet-grip' }),
+    h('div', { class: 'sheet-head' }, h('h2', null, title), h('button', { class: 'icon-btn', 'aria-label': t('닫기'), onclick: closeSheet }, icon('x'))),
+    content);
+  back.append(sheet);
+  $('#sheet-root').append(back);
+  sheetCleanup = onClose || null;
+  const onKey = e => e.key === 'Escape' && closeSheet();
+  document.addEventListener('keydown', onKey);
+  back._onKey = onKey;
+  return sheet;
+}
+function closeSheet() {
+  const back = $('#sheet-root .sheet-back');
+  if (back) { document.removeEventListener('keydown', back._onKey); back.remove(); }
+  const fn = sheetCleanup; sheetCleanup = null; fn?.();
+}
+
+const skeletons = (n = 3) => h('div', { class: 'list' }, Array.from({ length: n }, () => h('div', { class: 'skeleton' })));
+const empty = text => h('div', { class: 'empty' }, text);
+function errorBox(e, retry) {
+  return h('div', { class: 'error-box' }, h('span', null, errText(e)), retry && h('button', { class: 'btn sm', onclick: retry }, t('다시 시도')));
+}
+function confirmSheet(title, text, okLabel, onOk, danger = false) {
+  const okBtn = h('button', { class: 'btn ' + (danger ? 'danger' : 'primary'), onclick: async () => {
+    okBtn.disabled = true;
+    try { await onOk(); closeSheet(); } catch (e) { if (!(e instanceof Stale)) toast(errText(e), 'error'); okBtn.disabled = false; }
+  } }, okLabel);
+  openSheet(title, h('div', { class: 'stack' }, h('p', { class: 'muted' }, text), h('div', { class: 'row', style: 'justify-content:flex-end' }, h('button', { class: 'btn', onclick: closeSheet }, t('취소')), okBtn)));
+}
+
+/** Toggle button with pressed state (aria-pressed). */
+function chipGroup(options, current, onPick) {
+  const wrap = h('div', { class: 'chips', role: 'group' });
+  const draw = val => wrap.replaceChildren(...options.map(([v, label]) =>
+    h('button', { class: 'chip', 'aria-pressed': String(v === val), onclick: () => { draw(v); onPick(v); } }, label)));
+  draw(current);
+  return wrap;
+}
+function switchBtn(on, onChange, label) {
+  const b = h('button', { class: 'switch', role: 'switch', 'aria-checked': String(!!on), 'aria-label': label });
+  b.addEventListener('click', async () => {
+    const next = b.getAttribute('aria-checked') !== 'true';
+    b.setAttribute('aria-checked', String(next));
+    b.disabled = true;
+    try { await onChange(next); } catch (e) { b.setAttribute('aria-checked', String(!next)); if (!(e instanceof Stale)) toast(errText(e), 'error'); }
+    b.disabled = false;
+  });
+  return b;
+}
+function heartBtn(saved, onToggle, label = t('찜')) {
+  const b = h('button', { class: 'icon-btn', 'aria-pressed': String(saved), 'aria-label': label, style: saved ? 'color:var(--accent)' : '' }, icon(saved ? 'heartFill' : 'heart'));
+  b.addEventListener('click', async e => {
+    e.stopPropagation();
+    const next = b.getAttribute('aria-pressed') !== 'true';
+    b.disabled = true;
+    try {
+      await onToggle(next);
+      b.setAttribute('aria-pressed', String(next));
+      b.style.color = next ? 'var(--accent)' : '';
+      b.replaceChildren(icon(next ? 'heartFill' : 'heart'));
+    } catch (err) { if (!(err instanceof Stale)) toast(errText(err), 'error'); }
+    b.disabled = false;
+  });
+  return b;
+}
+const saveToggle = (type, id) => on => api(on ? 'PUT' : 'DELETE', `/me/saved/${type}/${id}`);
+
+/** Paged list helper with "더 보기". fetchPage(cursor) → { items, nextCursor } */
+function pagedList({ fetchPage, renderItem, emptyText }) {
+  const listEl = h('div', { class: 'list' });
+  const moreBtn = h('button', { class: 'btn block hidden', onclick: () => load(false) }, t('더 보기'));
+  const wrap = h('div', { class: 'stack' }, listEl, moreBtn);
+  let cursor = null, token = 0;
+  async function load(reset) {
+    const my = reset ? ++token : token;
+    if (reset) { cursor = null; listEl.replaceChildren(skeletons()); moreBtn.classList.add('hidden'); }
+    moreBtn.disabled = true;
+    try {
+      const page = await fetchPage(cursor);
+      if (my !== token) return;
+      if (reset) listEl.replaceChildren();
+      page.items.forEach(it => listEl.append(renderItem(it)));
+      if (reset && !page.items.length) listEl.append(empty(typeof emptyText === 'function' ? emptyText() : emptyText));
+      cursor = page.nextCursor;
+      moreBtn.classList.toggle('hidden', !cursor);
+    } catch (e) {
+      if (e instanceof Stale || my !== token) return;
+      if (reset) listEl.replaceChildren(errorBox(e, () => load(true)));
+      else toast(errText(e), 'error');
+    }
+    moreBtn.disabled = false;
+  }
+  return { el: wrap, reload: () => load(true), listEl };
+}
+
+/* ════════════════════════════════════════════════════════════════════
+   Navigation (5 tabs, each with a view stack)
+   ════════════════════════════════════════════════════════════════════ */
+const TABS = [
+  ['live', t('실시간현황'), t('현황'), 'live', () => viewRooms('live')],
+  ['daily', t('데일리톡'), t('데일리톡'), 'chat', () => viewRooms('daily')],
+  ['lounge', t('라운지'), t('라운지'), 'board', viewLounge],
+  ['places', t('플레이스'), t('플레이스'), 'pin', viewPlaces],
+  ['my', t('마이페이지'), t('마이'), 'user', viewMy],
+];
+
+function drawTabs() {
+  const pending = S.counts ? S.counts.pendingDmRequests + S.counts.unreadNotifications : 0;
+  $('#tabs').replaceChildren(...TABS.map(([id, long, short, ic]) =>
+    h('button', { class: 'tab', 'aria-current': S.tab === id ? 'page' : null, onclick: () => switchTab(id) },
+      icon(ic), h('span', { class: 'tab-label-short' }, short), h('span', { class: 'tab-label-long' }, long),
+      id === 'my' && pending > 0 && h('span', { class: 'dot' }, pending > 99 ? '99+' : pending))));
+  const unread = S.counts?.unreadNotifications || 0;
+  $('#bell').replaceChildren(icon('bell'), unread > 0 && h('span', { class: 'dot' }, unread > 99 ? '99+' : unread));
+}
+
+function clearStack() {
+  for (const v of S.stack) v.cleanup?.();
+  S.stack = [];
+}
+function mount(view) {
+  const main = $('#main');
+  main.replaceChildren(view.el);
+  main.scrollTop = 0;
+}
+function switchTab(id) {
+  clearStack();
+  closeSheet();
+  S.tab = id;
+  drawTabs();
+  const view = TABS.find(tab => tab[0] === id)[4]();
+  S.stack.push(view);
+  mount(view);
+}
+/** Push a detail view on the current tab's stack. */
+function push(view) {
+  const prev = S.stack[S.stack.length - 1];
+  prev?.pause?.();
+  S.stack.push(view);
+  mount(view);
+}
+function back() {
+  if (S.stack.length <= 1) return;
+  S.stack.pop().cleanup?.();
+  const top = S.stack[S.stack.length - 1];
+  mount(top);
+  top.resume?.();
+}
+const backBtn = () => h('button', { class: 'icon-btn back', 'aria-label': t('뒤로'), onclick: back }, icon('back'));
+
+/* ════════════════════════════════════════════════════════════════════
+   Media (F02): upload + short-lived signed URLs
+   ════════════════════════════════════════════════════════════════════ */
+async function mediaUrl(id) {
+  const hit = S.mediaUrls.get(id);
+  if (hit && hit.exp - Date.now() > 30000) return hit.url;
+  const r = await api('GET', `/media/${id}/url`);
+  S.mediaUrls.set(id, { url: r.url, exp: Date.parse(r.expiresAt) });
+  return r.url;
+}
+function mediaImg(id) {
+  const ph = h('div', { class: 'img-ph' }, t('사진 불러오는 중…'));
+  mediaUrl(id)
+    .then(url => ph.replaceWith(h('img', { src: url, alt: t('첨부 사진'), loading: 'lazy' })))
+    .catch(e => { if (!(e instanceof Stale)) ph.textContent = e.status === 403 ? t('볼 수 없는 사진') : t('사진을 불러오지 못했어요'); });
+  return ph;
+}
+function pickImage() {
+  return new Promise(resolve => {
+    const input = h('input', { type: 'file', accept: 'image/jpeg,image/png,image/webp', class: 'hidden' });
+    input.addEventListener('change', () => { resolve(input.files[0] || null); input.remove(); });
+    document.body.append(input);
+    input.click();
+  });
+}
+async function uploadImage(file) {
+  if (file.size > 10 * 1024 * 1024) throw new ApiError(413, 'too_large');
+  return api('POST', '/media', undefined, { raw: file, contentType: file.type });
+}
+
+/* ════════════════════════════════════════════════════════════════════
+   Chat component (rooms + DM): pending/sending/failed/retry, dedupe, backfill
+   ════════════════════════════════════════════════════════════════════ */
+function createChat({ showNick, send, withRail, meId = S.user.id, emptyText = t('첫 메시지를 남겨보세요.') }) {
+  const list = h('div', { class: 'msgs', 'aria-live': 'polite' });
+  const byId = new Map();          // message id → element
+  const pending = new Map();       // localId → { requestId, body, mediaId, el, state }
+  let lastSeq = 0, ownReadSeq = 0, disabled = false;
+  const emptyEl = empty(emptyText);
+  list.append(emptyEl);
+
+  const input = h('textarea', { rows: 1, placeholder: t('메시지를 입력하세요'), maxlength: 2000, 'aria-label': t('메시지 입력') });
+  input.addEventListener('input', () => { input.style.height = 'auto'; input.style.height = Math.min(120, input.scrollHeight) + 'px'; });
+  input.addEventListener('keydown', e => {
+    if (e.key === 'Enter' && !e.shiftKey && !e.isComposing) { e.preventDefault(); submitText(); }
+  });
+  const photoBtn = h('button', { class: 'icon-btn', 'aria-label': t('사진 보내기'), onclick: submitPhoto }, icon('image'));
+  const sendBtn = h('button', { class: 'btn primary', style: 'height:42px', 'aria-label': t('전송'), onclick: submitText }, icon('send'));
+  const composer = h('div', { class: 'composer' }, photoBtn, input, sendBtn);
+  const blockedBar = h('div', { class: 'chat-blocked hidden' });
+  const el = h('div', { class: 'chat' + (withRail ? '' : ' no-rail') }, list, composer, blockedBar);
+
+  const nearBottom = () => list.scrollHeight - list.scrollTop - list.clientHeight < 120;
+  const scrollDown = () => requestAnimationFrame(() => { list.scrollTop = list.scrollHeight; });
+
+  function bubble(m) {
+    return h('div', { class: 'bubble' }, m.mediaId && mediaImg(m.mediaId), m.body && (m.mediaId ? h('div', { style: 'margin-top:10px' }, m.body) : m.body));
+  }
+  function renderMsg(m) {
+    const mine = m.senderId === meId;
+    const readEl = mine && h('span', { class: 'read' }, m.readByOther || m.seq <= ownReadSeq ? t('읽음') : '');
+    const node = h('div', { class: 'msg' + (mine ? ' mine' : '') },
+      showNick && !mine && h('span', { class: 'who' }, m.senderNickname || t('익명')),
+      bubble(m),
+      h('span', { class: 'meta' }, readEl, clock(m.createdAt)));
+    node.dataset.seq = m.seq;
+    node.dataset.mine = mine ? '1' : '';
+    return node;
+  }
+  function insertSorted(node, seq) {
+    emptyEl.remove();
+    const firstPending = [...list.children].find(c => c.dataset.pending);
+    let before = firstPending || null;
+    for (const c of list.children) {
+      if (c.dataset.pending) break;
+      if (Number(c.dataset.seq) > seq) { before = c; break; }
+    }
+    list.insertBefore(node, before);
+  }
+  function add(m) {
+    if (byId.has(m.id)) return;
+    // Our own message may arrive over the socket before the HTTP response: merge with the pending bubble.
+    if (m.senderId === meId) {
+      for (const [lid, p] of pending) {
+        if (p.state === 'sending' && (p.body ?? null) === (m.body ?? null) && (p.mediaId ?? null) === (m.mediaId ?? null)) {
+          p.el.remove(); pending.delete(lid); break;
+        }
+      }
+    }
+    const stick = nearBottom() || m.senderId === meId;
+    const node = renderMsg(m);
+    byId.set(m.id, node);
+    insertSorted(node, m.seq);
+    lastSeq = Math.max(lastSeq, m.seq);
+    if (stick) scrollDown();
+  }
+  function renderPending(lid) {
+    const p = pending.get(lid);
+    const meta = p.state === 'failed'
+      ? h('span', { class: 'meta', style: 'color:var(--danger)' }, t('전송 실패 · '), h('button', { class: 'btn sm', onclick: () => doSend(lid) }, t('다시 보내기')), h('button', { class: 'btn sm', onclick: () => { p.el.remove(); pending.delete(lid); } }, t('삭제')))
+      : h('span', { class: 'meta' }, t('전송 중…'));
+    const node = h('div', { class: 'msg mine ' + p.state }, bubble({ body: p.body, mediaId: p.mediaId }), meta);
+    node.dataset.pending = '1';
+    if (p.el) p.el.replaceWith(node); else { emptyEl.remove(); list.append(node); }
+    p.el = node;
+  }
+  async function doSend(lid) {
+    const p = pending.get(lid);
+    if (!p) return;
+    p.state = 'sending';
+    renderPending(lid);
+    scrollDown();
+    try {
+      // Same requestId on every retry → the server stores the message once.
+      const r = await send({ requestId: p.requestId, body: p.body, mediaId: p.mediaId });
+      if (!pending.has(lid)) { add(r.message); return; }
+      p.el.remove(); pending.delete(lid);
+      add(r.message);
+    } catch (e) {
+      if (e instanceof Stale || !pending.has(lid)) return;
+      if (e.status === 403 || e.code === 'room_closed') { p.el.remove(); pending.delete(lid); toast(errText(e), 'error'); return; }
+      p.state = 'failed';
+      renderPending(lid);
+    }
+  }
+  function queue(body, mediaId) {
+    const lid = newKey();
+    pending.set(lid, { requestId: newKey(), body, mediaId, state: 'sending', el: null });
+    doSend(lid);
+  }
+  function submitText() {
+    if (disabled) return;
+    const text = input.value.trim();
+    if (!text) return;
+    input.value = ''; input.style.height = 'auto';  // draft is separate from the in-flight payload
+    queue(text, undefined);
+    input.focus();
+  }
+  async function submitPhoto() {
+    if (disabled) return;
+    const file = await pickImage();
+    if (!file) return;
+    photoBtn.disabled = true;
+    try {
+      toast(t('사진 업로드 중…'));
+      const m = await uploadImage(file);
+      queue(undefined, m.id);
+    } catch (e) { if (!(e instanceof Stale)) toast(errText(e), 'error'); }
+    photoBtn.disabled = false;
+  }
+  return {
+    el, add,
+    get lastSeq() { return lastSeq; },
+    load(items) { items.forEach(add); scrollDown(); },
+    markOwnRead(seq) {
+      ownReadSeq = Math.max(ownReadSeq, seq);
+      for (const node of byId.values()) if (node.dataset.mine && Number(node.dataset.seq) <= ownReadSeq) { const r = node.querySelector('.read'); if (r) r.textContent = t('읽음'); }
+    },
+    /** Permission revoked: clear history and draft, stop input. */
+    revoke(text) {
+      disabled = true;
+      byId.clear(); pending.clear();
+      list.replaceChildren(empty(text));
+      input.value = '';
+      composer.classList.add('hidden');
+      blockedBar.textContent = text;
+      blockedBar.classList.remove('hidden');
+    },
+    disable(text) {
+      disabled = true;
+      composer.classList.add('hidden');
+      blockedBar.textContent = text;
+      blockedBar.classList.remove('hidden');
+    },
+  };
+}
+
+/* ════════════════════════════════════════════════════════════════════
+   실시간현황 / 데일리톡 — rooms (F03, F07, F08)
+   ════════════════════════════════════════════════════════════════════ */
+function statsBlock(st) {
+  const cells = [['choice', t('초중')], ['entry', t('엔트리')], ['waiting', t('대기')], ['vacancy', t('빈방')]];
+  const el = h('div', { class: 'stats4' }, cells.map(([k, label]) => h('div', { class: 'stat', 'data-k': k }, h('b', null, numOrDash(st?.[k])), h('span', null, label))));
+  return {
+    el,
+    update(next, flash = true) {
+      for (const [k] of cells) {
+        const cell = el.querySelector(`[data-k="${k}"]`);
+        const b = cell.querySelector('b');
+        const v = numOrDash(next?.[k]);
+        if (b.textContent !== v) { b.textContent = v; if (flash) { cell.classList.remove('flash'); void cell.offsetWidth; cell.classList.add('flash'); } }
+      }
+    },
+  };
+}
+const stateBadge = s => { const [t, c] = MEMBER_STATE[s] || MEMBER_STATE.none; return h('span', { class: 'badge ' + c }, t); };
+
+function viewRooms(mode) {
+  const isDaily = mode === 'daily';
+  const f = { kind: isDaily ? 'daily' : 'store,general', region: '', q: '', saved: false };
+  const cards = new Map(); // roomId → { stats, updated }
+  const badge = connBadge();
+  const search = h('input', { type: 'search', placeholder: isDaily ? t('주제 검색') : t('가게·방 이름 검색'), 'aria-label': t('검색') });
+  let searchTimer;
+  search.addEventListener('input', () => { clearTimeout(searchTimer); searchTimer = setTimeout(() => { f.q = search.value.trim(); list.reload(); }, 300); });
+
+  function card(r) {
+    const stats = r.kind === 'store' && statsBlock(r.liveStatus); // counts only mean something for store rooms
+    const updated = h('span', { class: 'faint small' }, r.kind !== 'store' ? '' : r.liveStatus ? t('현황 {t}', { t: ago(r.liveStatus.updatedAt) }) : t('현황 미등록'));
+    cards.set(r.id, { stats, updated });
+    return h('div', { class: 'card click room-card', role: 'button', tabindex: 0, onclick: () => push(viewRoom(r.id)), onkeydown: e => e.key === 'Enter' && push(viewRoom(r.id)) },
+      h('div', { class: 'between' },
+        h('div', { class: 'grow' },
+          h('div', { class: 'row' }, h('span', { class: 'badge primary' }, r.anonymous ? t('익명 오픈톡') : ROOM_KIND[r.kind]), r.status === 'closed' && h('span', { class: 'badge' }, t('종료')), stateBadge(r.myState)),
+          h('div', { class: 'title ellipsis', style: 'margin-top:6px' }, r.title),
+          h('div', { class: 'small muted' }, [r.region && REGIONS[r.region], t('참여 {n}명', { n: `${r.activeCount}${r.capacity ? '/' + r.capacity : ''}` }), r.joinPolicy === 'approval' ? t('승인제') : t('바로 참여')].filter(Boolean).join(' · '))),
+        heartBtn(r.saved, saveToggle('room', r.id))),
+      stats && stats.el,
+      h('div', { style: 'margin-top:8px' }, updated));
+  }
+
+  const list = pagedList({
+    fetchPage: cursor => api('GET', '/rooms' + qs({ kind: f.kind, region: f.region, q: f.q, saved: f.saved && 'true', cursor, limit: 20 })),
+    renderItem: card,
+    emptyText: () => (f.saved ? t('찜한 방이 없어요.') : t('조건에 맞는 방이 없어요.')),
+  });
+
+  // Live status counters for every visible card (F03: numbers on other phones within 1 s).
+  let live;
+  const startLive = () => {
+    if (isDaily) return;
+    live = new Live('status', {
+      onState: s => badge.set(s),
+      onEvent: ev => {
+        if (ev.type !== 'status') return;
+        const c = cards.get(ev.roomId);
+        if (!c) return;
+        c.stats?.update(ev.status);
+        c.updated.textContent = t('현황 {t}', { t: ago(ev.status.updatedAt) });
+      },
+    });
+  };
+  startLive();
+
+  const el = h('div', { class: 'view' },
+    h('div', { class: 'between' }, h('h1', { class: 'view-title' }, isDaily ? t('데일리톡') : t('실시간현황')), !isDaily && badge.el),
+    h('p', { class: 'view-sub' }, isDaily ? t('주제별로 모여 가볍게 이야기해요.') : t('초이스톡 · 가게별 초중·엔트리·대기·빈방을 실시간으로 확인해요.')),
+    h('label', { class: 'search' }, icon('search'), search),
+    !isDaily && chipGroup([['store,general', t('전체')], ['store', t('가게방')], ['general', t('일반방')]], f.kind, v => { f.kind = v; list.reload(); }),
+    h('div', { class: 'row' },
+      h('div', { class: 'grow' }, chipGroup(Object.entries(REGIONS), '', v => { f.region = v; list.reload(); })),
+      h('button', { class: 'chip', 'aria-pressed': 'false', onclick: e => { f.saved = !f.saved; e.currentTarget.setAttribute('aria-pressed', String(f.saved)); list.reload(); } }, t('♡ 찜'))),
+    list.el);
+  list.reload();
+  return {
+    el,
+    cleanup: () => live?.close(),
+    pause: () => { live?.close(); live = null; },
+    resume: () => { cards.clear(); list.reload(); startLive(); },
+  };
+}
+
+function viewRoom(roomId) {
+  const body = h('div', { class: 'room-layout' }, skeletons(2));
+  const titleEl = h('h1', { class: 'view-title ellipsis grow', style: 'font-size:18px' }, t('불러오는 중…'));
+  const actions = h('div', { class: 'row', style: 'gap:2px' });
+  const badge = connBadge();
+  const statusWrap = h('div');
+  const el = h('div', { class: 'view fill' }, h('div', { class: 'view-head' }, backBtn(), titleEl, actions), statusWrap, body);
+  let live = null, room = null, chat = null, stats = null, pendingTimer = null;
+  const stopTimers = () => { live?.close(); live = null; clearInterval(pendingTimer); pendingTimer = null; };
+
+  async function load() {
+    stopTimers();
+    try {
+      room = await api('GET', `/rooms/${roomId}`);
+    } catch (e) {
+      if (e instanceof Stale) return;
+      body.replaceChildren(errorBox(e, load));
+      return;
+    }
+    titleEl.textContent = room.title;
+    actions.replaceChildren(
+      heartBtn(room.saved, saveToggle('room', room.id)),
+      room.canManage && h('button', { class: 'btn sm', onclick: () => manageSheet() }, t('관리')),
+      room.myState === 'active' && h('button', { class: 'icon-btn', 'aria-label': t('더보기'), onclick: roomMenu }, icon('more')));
+    stats = room.kind === 'store' ? statsBlock(room.liveStatus) : null;
+    statusWrap.replaceChildren(
+      h('div', { class: 'row small muted' }, h('span', { class: 'badge primary' }, room.anonymous ? t('익명 오픈톡') : ROOM_KIND[room.kind]), stateBadge(room.myState), room.myAlias && h('span', null, t('내 닉네임: ') + room.myAlias.nickname), room.region && REGIONS[room.region], h('span', { class: 'grow' }), badge.el),
+      stats ? stats.el : '');
+    if (stats) stats.el.style.marginTop = '8px';
+
+    const rail = room.hasStoreTools && h('div', { class: 'tool-rail', role: 'toolbar', 'aria-label': t('가게방 도구') },
+      h('button', { class: 'btn', onclick: () => toolsSheet('prices') }, t('가격표')),
+      h('button', { class: 'btn', onclick: () => toolsSheet('terms') }, t('용어')),
+      h('button', { class: 'btn', onclick: staffSheet }, t('담당 찾기')),
+      h('button', { class: 'btn', onclick: () => toolsSheet('vacancy') }, t('빈방 기록')));
+
+    if (room.status === 'closed') {
+      body.replaceChildren(rail || '', h('div', { class: 'notice-bar' }, t('종료된 방이에요. 대화 기록은 열람할 수 없어요.')));
+      return;
+    }
+    if (room.myState !== 'active') {
+      body.replaceChildren(rail || '', joinPanel());
+      subscribe(false);
+      // Pending members are not on the room channel yet, so check for approval periodically.
+      if (room.myState === 'pending') {
+        pendingTimer = setInterval(async () => {
+          try { const r = await api('GET', `/rooms/${roomId}`); if (r.myState !== 'pending') { toast(r.myState === 'active' ? t('참여가 승인되었어요.') : t('참여 신청 상태가 바뀌었어요.')); load(); } } catch {}
+        }, 8000);
+      }
+      return;
+    }
+    chat = createChat({
+      showNick: true,
+      withRail: !!rail,
+      meId: room.myAlias ? room.myAlias.id : S.user.id,
+      emptyText: room.anonymous ? t('익명 오픈톡이에요. 이 방에서는 자동 닉네임으로 표시돼요.') : undefined,
+      send: p => api('POST', `/rooms/${room.id}/messages`, p),
+    });
+    body.replaceChildren(rail || '', chat.el);
+    try {
+      const page = await api('GET', `/rooms/${room.id}/messages?limit=50`);
+      chat.load(page.items);
+    } catch (e) { if (!(e instanceof Stale)) toast(errText(e), 'error'); }
+    subscribe(true);
+  }
+
+  function subscribe(member) {
+    // Non-members still see live counters via the global status channel.
+    const channel = member ? `room:${room.id}` : 'status';
+    if (room.kind === 'daily' && !member) return;
+    live = new Live(channel, {
+      onState: s => badge.set(s),
+      onReady: async () => {
+        if (!member || !chat) return;
+        // Backfill anything missed while (re)connecting; duplicates are dropped by id.
+        try { const r = await api('GET', `/rooms/${room.id}/messages?afterSeq=${chat.lastSeq}&limit=200`); r.items.forEach(chat.add); } catch {}
+      },
+      onEvent: ev => {
+        if (ev.type === 'status' && ev.roomId === room.id) stats?.update(ev.status);
+        else if (ev.type === 'message' && chat) chat.add(ev.message);
+        else if (ev.type === 'member' && ev.userId === S.user.id) load();
+        else if (ev.type === 'revoked') {
+          if (chat) chat.revoke(ev.reason === 'room_closed' ? t('방이 종료되었어요.') : t('참여 권한이 해제되었어요.'));
+          badge.set('closed');
+        }
+      },
+    });
+  }
+
+  function joinPanel() {
+    const s = room.myState;
+    const text = {
+      none: room.joinPolicy === 'approval' ? t('이 방은 방장의 승인 후 참여할 수 있어요.') : t('참여하면 바로 대화할 수 있어요.'),
+      pending: t('참여 신청을 보냈어요. 방장의 승인을 기다리는 중이에요.'),
+      rejected: t('참여 신청이 거절되었어요. 다시 신청할 수 있어요.'),
+      left: t('방을 나갔어요. 다시 참여할 수 있어요.'),
+      blocked: t('이 방에서 참여가 제한되었어요.'),
+    }[s];
+    const btn = (s === 'none' || s === 'rejected' || s === 'left') && h('button', { class: 'btn primary', onclick: async e => {
+      e.currentTarget.disabled = true;
+      try { const r = await api('POST', `/rooms/${room.id}/join`); toast(r.state === 'active' ? t('참여했어요.') : t('참여를 신청했어요.'), 'ok'); load(); }
+      catch (err) { if (!(err instanceof Stale)) toast(errText(err), 'error'); e.currentTarget.disabled = false; }
+    } }, room.joinPolicy === 'approval' ? t('참여 신청') : t('참여하기'));
+    const cancel = s === 'pending' && h('button', { class: 'btn', onclick: async () => {
+      try { await api('POST', `/rooms/${room.id}/leave`); load(); } catch (err) { if (!(err instanceof Stale)) toast(errText(err), 'error'); }
+    } }, t('신청 취소'));
+    return h('div', { class: 'card stack', style: 'margin-top:8px;margin-right:' + (room.hasStoreTools ? '96px' : '0') },
+      h('p', { class: 'muted' }, text), h('div', { class: 'row' }, btn, cancel));
+  }
+
+  function roomMenu() {
+    openSheet(t('방 메뉴'), h('div', null,
+      h('button', { class: 'menu-row', onclick: () => confirmSheet(t('방 나가기'), t('방을 나가면 대화를 더 이상 볼 수 없어요.'), t('나가기'), async () => { await api('POST', `/rooms/${room.id}/leave`); load(); }, true) }, icon('logout'), t('방 나가기'))));
+  }
+
+  async function toolsSheet(section) {
+    const content = h('div', null, skeletons(2));
+    const titles = { prices: t('가격표'), terms: t('용어'), vacancy: t('빈방 기록') };
+    openSheet(titles[section], content);
+    let tools;
+    try { tools = await api('GET', `/rooms/${room.id}/tools`); } catch (e) { if (!(e instanceof Stale)) content.replaceChildren(errorBox(e)); return; }
+    if (section === 'prices') {
+      const view = () => content.replaceChildren(
+        tools.prices.length ? h('div', null, tools.prices.map(p => h('div', { class: 'kv' }, h('span', null, p.label, p.note && h('span', { class: 'faint small' }, ' · ' + p.note)), h('b', null, won(p.amount))))) : empty(t('등록된 가격표가 없어요.')),
+        h('p', { class: 'faint small', style: 'margin-top:8px' }, t('“문의”는 금액 미정이며 0원과 다릅니다.')),
+        tools.canEdit && h('button', { class: 'btn block', style: 'margin-top:12px', onclick: edit }, t('가격표 수정')));
+      const edit = () => {
+        const rows = h('div');
+        const addRow = (p = { label: '', amount: null, note: '' }) => {
+          const r = h('div', { class: 'edit-row' },
+            h('input', { class: 'field', placeholder: t('항목'), value: p.label, 'aria-label': t('항목') }),
+            h('input', { class: 'field', placeholder: t('금액 (비우면 문의)'), inputmode: 'numeric', value: p.amount ?? '', 'aria-label': t('금액') }),
+            h('button', { class: 'icon-btn', 'aria-label': t('삭제'), onclick: () => r.remove() }, icon('x')));
+          rows.append(r);
+        };
+        tools.prices.forEach(addRow);
+        const save = h('button', { class: 'btn primary', onclick: async () => {
+          const items = [...rows.children].map(r => { const [l, a] = r.querySelectorAll('input'); const v = a.value.replace(/[^\d]/g, ''); return { label: l.value.trim(), amount: v === '' ? null : Number(v) }; }).filter(i => i.label);
+          save.disabled = true;
+          try { await api('PUT', `/rooms/${room.id}/tools/prices`, { items }); tools.prices = items.map(i => ({ ...i, note: null })); toast(t('가격표를 저장했어요.'), 'ok'); view(); }
+          catch (e) { if (!(e instanceof Stale)) toast(errText(e), 'error'); save.disabled = false; }
+        } }, t('저장'));
+        content.replaceChildren(rows, h('div', { class: 'row', style: 'margin-top:8px' }, h('button', { class: 'btn', onclick: () => addRow() }, t('+ 항목')), h('span', { class: 'grow' }), h('button', { class: 'btn', onclick: view }, t('취소')), save));
+      };
+      view();
+    } else if (section === 'terms') {
+      content.replaceChildren(tools.terms.length ? h('div', null, tools.terms.map(x => h('div', { class: 'kv', style: 'flex-direction:column;gap:2px' }, h('b', null, x.term), h('span', { class: 'muted small' }, x.definition)))) : empty(t('등록된 용어가 없어요.')));
+    } else {
+      const latest = tools.vacancy.latest;
+      const vInput = h('input', { class: 'field', type: 'number', min: 0, max: 9999, placeholder: t('빈방 수'), 'aria-label': t('빈방 수') });
+      const nInput = h('input', { class: 'field', placeholder: t('메모 (예: 22시 기준)'), maxlength: 100, 'aria-label': t('메모') });
+      const rec = tools.canEdit && h('div', { class: 'stack card', style: 'margin-top:12px' }, h('b', null, t('빈방 기록하기')), h('div', { class: 'row' }, vInput, nInput),
+        h('button', { class: 'btn primary', onclick: async e => {
+          const v = Number(vInput.value);
+          if (vInput.value === '' || !Number.isInteger(v) || v < 0) { toast(t('빈방 수를 0 이상 숫자로 입력해 주세요.'), 'error'); return; }
+          e.currentTarget.disabled = true;
+          try { await api('POST', `/rooms/${room.id}/tools/vacancy`, { vacancy: v, note: nInput.value.trim() || undefined }); toast(t('기록했어요. 다른 회원 화면에도 바로 반영돼요.'), 'ok'); toolsSheet('vacancy'); }
+          catch (err) { if (!(err instanceof Stale)) toast(errText(err), 'error'); e.currentTarget.disabled = false; }
+        } }, t('기록')));
+      content.replaceChildren(
+        h('div', { class: 'card', style: 'text-align:center' }, h('div', { class: 'muted small' }, t('최근 빈방')), h('div', { style: 'font-size:32px;font-weight:900' }, latest ? latest.vacancy : '—'), h('div', { class: 'faint small' }, latest ? `${latest.recordedBy} · ${ago(latest.recordedAt)}${latest.note ? ' · ' + latest.note : ''}` : t('기록 없음'))),
+        tools.vacancy.history.length > 1 && h('div', { style: 'margin-top:10px' }, h('div', { class: 'section-label' }, t('이전 기록')), tools.vacancy.history.slice(1).map(v => h('div', { class: 'kv small' }, h('span', { class: 'muted' }, `${ago(v.recordedAt)}${v.note ? ' · ' + v.note : ''}`), h('b', null, v.vacancy)))),
+        rec);
+    }
+  }
+
+  async function staffSheet() {
+    const content = h('div', null, skeletons(2));
+    openSheet(t('담당 찾기'), content);
+    try {
+      const r = await api('GET', `/rooms/${room.id}/staff`);
+      content.replaceChildren(r.items.length ? h('div', { class: 'list' }, r.items.map(s => h('div', { class: 'card row' },
+        h('div', { class: 'avatar sm' }, s.nickname.slice(0, 1)),
+        h('div', { class: 'grow' }, h('b', null, s.nickname), ' ', h('span', { class: 'badge primary' }, s.title),
+          h('div', { class: 'small faint' }, s.lastSeen.visible ? (s.lastSeen.at ? t('최근 접속 {t}', { t: ago(s.lastSeen.at) }) : t('접속 기록 없음')) : t('최근 접속 비공개'))),
+        s.userId !== S.user.id && h('button', { class: 'btn sm', onclick: () => dmRequestSheet({ toUserId: s.userId }, s.nickname) }, t('1:1 신청'))))) : empty(t('등록된 담당자가 없어요.')));
+    } catch (e) { if (!(e instanceof Stale)) content.replaceChildren(errorBox(e)); }
+  }
+
+  async function manageSheet() {
+    const content = h('div', { class: 'stack' }, skeletons(1));
+    openSheet(t('방 관리'), content);
+    const pendingList = h('div', { class: 'list' });
+    const drawPending = async () => {
+      try {
+        const r = await api('GET', `/rooms/${room.id}/members?state=pending`);
+        pendingList.replaceChildren(...(r.items.length ? r.items.map(m => h('div', { class: 'card row' }, h('b', { class: 'grow' }, m.nickname),
+          h('button', { class: 'btn sm primary', onclick: () => act(m.userId, 'approve') }, t('승인')),
+          h('button', { class: 'btn sm', onclick: () => act(m.userId, 'reject') }, t('거절')))) : [h('p', { class: 'faint small' }, t('대기 중인 신청이 없어요.'))]));
+      } catch (e) { if (!(e instanceof Stale)) pendingList.replaceChildren(errorBox(e)); }
+    };
+    const act = async (userId, action) => {
+      try { await api('POST', `/rooms/${room.id}/members/${userId}`, { action }); toast(action === 'approve' ? t('승인했어요.') : t('거절했어요.'), 'ok'); drawPending(); }
+      catch (e) { if (!(e instanceof Stale)) toast(errText(e), 'error'); }
+    };
+    const cur = room.liveStatus || {};
+    const inputs = [['choice', t('초중')], ['entry', t('엔트리')], ['waiting', t('대기')], ['vacancy', t('빈방')]].map(([k, label]) =>
+      h('input', { class: 'field', type: 'number', min: 0, max: 9999, value: cur[k] ?? '', 'aria-label': label, 'data-k': k }));
+    const saveStatus = h('button', { class: 'btn primary', onclick: async () => {
+      const body = {};
+      for (const i of inputs) { const v = i.value.trim(); body[i.dataset.k] = v === '' ? null : Number(v); }
+      saveStatus.disabled = true;
+      try { const r = await api('PUT', `/rooms/${room.id}/status`, body); room.liveStatus = r; toast(t('현황을 업데이트했어요.'), 'ok'); }
+      catch (e) { if (!(e instanceof Stale)) toast(errText(e), 'error'); }
+      saveStatus.disabled = false;
+    } }, t('현황 저장'));
+    content.replaceChildren(
+      room.joinPolicy === 'approval' && h('div', { class: 'stack' }, h('div', { class: 'section-label' }, t('참여 신청')), pendingList),
+      room.kind === 'store' && h('div', { class: 'stack' }, h('div', { class: 'section-label' }, t('실시간 현황 (비우면 미등록)')),
+        h('div', { class: 'num-grid small muted', style: 'text-align:center' }, t('초중'), t('엔트리'), t('대기'), t('빈방')),
+        h('div', { class: 'num-grid' }, inputs), saveStatus),
+      h('button', { class: 'btn danger', onclick: () => confirmSheet(t('방 종료'), t('방을 종료하면 모든 참여자의 연결이 끊어지고 대화를 열람할 수 없어요.'), t('종료'), async () => { await api('POST', `/rooms/${room.id}/close`); load(); }, true) }, t('방 종료')));
+    if (room.joinPolicy === 'approval') drawPending();
+  }
+
+  load();
+  return { el, cleanup: stopTimers, pause: stopTimers, resume: load };
+}
+
+/* ════════════════════════════════════════════════════════════════════
+   라운지 — board (F09)
+   ════════════════════════════════════════════════════════════════════ */
+function postCard(p, notice = false) {
+  return h('button', { class: 'card click' + (notice ? ' notice-card' : ''), onclick: () => push(viewPost(p.id)) },
+    h('div', { class: 'row' }, notice ? h('span', { class: 'badge primary' }, t('공지')) : h('span', { class: 'badge' }, LOUNGE_CATS[p.category] || p.category), h('span', { class: 'post-title ellipsis grow' }, p.title), p.commentCount > 0 && h('span', { class: 'badge accent' }, p.commentCount)),
+    p.body && h('div', { class: 'post-excerpt' }, p.body),
+    h('div', { class: 'post-meta' }, h('span', null, p.author.nickname), h('span', null, '♡ ' + p.likeCount), h('span', null, t('댓글 ') + p.commentCount), h('span', null, ago(p.createdAt))));
+}
+
+function viewLounge() {
+  const f = { category: '', sort: 'latest', q: '', display: 'summary' };
+  const notices = h('div', { class: 'list' });
+  const search = h('input', { type: 'search', placeholder: t('제목·내용 검색'), 'aria-label': t('게시글 검색') });
+  let searchTimer;
+  search.addEventListener('input', () => { clearTimeout(searchTimer); searchTimer = setTimeout(() => { f.q = search.value.trim(); list.reload(); }, 300); });
+  const list = pagedList({
+    fetchPage: cursor => api('GET', '/posts' + qs({ board: 'lounge', category: f.category, sort: f.sort, q: f.q, display: f.display, cursor, limit: 15 })),
+    renderItem: p => postCard(p),
+    emptyText: t('아직 글이 없어요. 첫 글을 남겨보세요.'),
+  });
+  const loadNotices = () => api('GET', '/posts/notices?board=lounge').then(r => notices.replaceChildren(...r.items.map(p => postCard(p, true)))).catch(() => {});
+  const el = h('div', { class: 'view' },
+    h('h1', { class: 'view-title' }, t('라운지')),
+    h('p', { class: 'view-sub' }, t('익명으로 이야기하고 공감을 나눠요.')),
+    h('label', { class: 'search' }, icon('search'), search),
+    chipGroup(Object.entries(LOUNGE_CATS), '', v => { f.category = v; list.reload(); }),
+    h('div', { class: 'between' },
+      chipGroup([['latest', t('최신순')], ['popular', t('공감순')], ['oldest', t('등록순')]], 'latest', v => { f.sort = v; list.reload(); }),
+      chipGroup([['summary', t('요약')], ['title', t('제목만')]], 'summary', v => { f.display = v; list.reload(); })),
+    notices, list.el,
+    h('button', { class: 'fab', 'aria-label': t('글쓰기'), onclick: () => writeSheet(() => list.reload()) }, icon('plus')));
+  loadNotices(); list.reload();
+  return { el, resume: () => { loadNotices(); list.reload(); } };
+}
+
+function writeSheet(onDone) {
+  const mutationId = newKey(); // stable for this draft → retries never double-post
+  const cat = h('select', { class: 'field', 'aria-label': t('카테고리') }, Object.entries(LOUNGE_CATS).filter(([k]) => k).map(([k, v]) => h('option', { value: k }, v)));
+  const title = h('input', { class: 'field', placeholder: t('제목'), maxlength: 100, 'aria-label': t('제목') });
+  const body = h('textarea', { class: 'field', placeholder: t('내용을 입력하세요'), maxlength: 10000, rows: 6, 'aria-label': t('내용') });
+  const submit = h('button', { class: 'btn primary block', onclick: async () => {
+    if (!title.value.trim() || !body.value.trim()) { toast(t('제목과 내용을 입력해 주세요.'), 'error'); return; }
+    submit.disabled = true;
+    try {
+      await api('POST', '/posts', { board: 'lounge', category: cat.value, title: title.value.trim(), body: body.value.trim(), mutationId });
+      closeSheet(); toast(t('글을 올렸어요.'), 'ok'); refreshCounts(); onDone?.();
+    } catch (e) { if (!(e instanceof Stale)) toast(errText(e), 'error'); submit.disabled = false; }
+  } }, t('등록'));
+  openSheet(t('글쓰기'), h('div', { class: 'stack' }, cat, title, body, submit));
+  title.focus();
+}
+
+function viewPost(postId) {
+  const content = h('div', { class: 'stack' }, skeletons(2));
+  const el = h('div', { class: 'view' }, h('div', { class: 'view-head' }, backBtn(), h('span', { class: 'muted' }, t('라운지'))), content);
+  let post;
+  const sortState = { sort: 'oldest' };
+
+  async function load() {
+    try { post = await api('GET', `/posts/${postId}`); }
+    catch (e) { if (!(e instanceof Stale)) content.replaceChildren(errorBox(e, load)); return; }
+    let liked = post.likedByMe, likes = post.likeCount;
+    const likeBtn = h('button', { class: 'btn sm', 'aria-pressed': String(liked) });
+    const drawLike = () => { likeBtn.replaceChildren(icon(liked ? 'heartFill' : 'heart'), t(' 공감 ') + likes); likeBtn.style.color = liked ? 'var(--accent)' : ''; likeBtn.setAttribute('aria-pressed', String(liked)); };
+    drawLike();
+    likeBtn.addEventListener('click', async () => {
+      likeBtn.disabled = true;
+      try { const r = await api(liked ? 'DELETE' : 'PUT', `/posts/${post.id}/like`); liked = r.liked; likes = r.likeCount; drawLike(); }
+      catch (e) { if (!(e instanceof Stale)) toast(errText(e), 'error'); }
+      likeBtn.disabled = false;
+    });
+
+    const comments = pagedList({
+      fetchPage: cursor => api('GET', `/posts/${post.id}/comments` + qs({ sort: sortState.sort, cursor, limit: 30 })),
+      renderItem: commentEl,
+      emptyText: t('첫 댓글을 남겨보세요.'),
+    });
+    const cBody = h('textarea', { class: 'field', rows: 2, placeholder: t('댓글을 입력하세요'), maxlength: 2000, style: 'min-height:60px', 'aria-label': t('댓글') });
+    const secret = h('input', { type: 'checkbox' });
+    let mutationId = newKey();
+    const cSubmit = h('button', { class: 'btn primary', onclick: async () => {
+      if (!cBody.value.trim()) return;
+      cSubmit.disabled = true;
+      try {
+        await api('POST', `/posts/${post.id}/comments`, { body: cBody.value.trim(), isSecret: secret.checked, mutationId });
+        cBody.value = ''; secret.checked = false; mutationId = newKey(); comments.reload();
+      } catch (e) { if (!(e instanceof Stale)) toast(errText(e), 'error'); }
+      cSubmit.disabled = false;
+    } }, t('등록'));
+
+    content.replaceChildren(
+      h('div', { class: 'card stack' },
+        h('div', { class: 'row' }, post.isNotice ? h('span', { class: 'badge primary' }, t('공지')) : h('span', { class: 'badge' }, LOUNGE_CATS[post.category] || post.category), h('span', { class: 'faint small' }, ago(post.createdAt))),
+        h('h1', { style: 'font-size:20px;font-weight:800' }, post.title),
+        h('div', { class: 'row small muted' }, h('div', { class: 'avatar sm' }, post.author.nickname.slice(0, 1)), post.author.nickname, post.isMine && h('span', { class: 'badge primary' }, t('내 글'))),
+        h('div', { class: 'post-body' }, post.body),
+        h('div', { class: 'row', style: 'flex-wrap:wrap' }, likeBtn,
+          !post.isMine && h('button', { class: 'btn sm', onclick: () => dmRequestSheet({ postId: post.id }, post.author.nickname) }, icon('chat'), t(' 1:1 대화 신청')),
+          !post.isMine && h('button', { class: 'btn sm', onclick: () => reportSheet('post', post.id) }, t('신고')),
+          !post.isMine && h('button', { class: 'btn sm', onclick: () => blockSheet(post.author.id, post.author.nickname, back) }, t('차단')),
+          post.isMine && h('button', { class: 'btn sm danger', onclick: () => confirmSheet(t('글 삭제'), t('삭제한 글은 되돌릴 수 없어요.'), t('삭제'), async () => { await api('DELETE', `/posts/${post.id}`); toast(t('삭제했어요.'), 'ok'); back(); }, true) }, t('삭제')))),
+      h('div', { class: 'between' }, h('div', { class: 'section-label' }, t('댓글 ') + post.commentCount),
+        chipGroup([['oldest', t('등록순')], ['latest', t('최신순')], ['popular', t('공감순')]], sortState.sort, v => { sortState.sort = v; comments.reload(); })),
+      h('div', { class: 'card stack' }, cBody, h('div', { class: 'between' }, h('label', { class: 'check' }, secret, icon('lock'), t('비밀 댓글 (글쓴이와 나만 보기)')), cSubmit)),
+      h('div', { class: 'card' }, comments.el));
+    comments.reload();
+  }
+
+  function commentEl(c) {
+    if (!c.visible) {
+      return h('div', { class: 'comment' }, h('div', { class: 'secret-hidden row' }, icon('lock'), t('비밀 댓글입니다.')), h('div', { class: 'faint small' }, ago(c.createdAt)));
+    }
+    let liked = c.likedByMe, n = c.likeCount;
+    const like = h('button', { class: 'btn sm' });
+    const draw = () => { like.textContent = (liked ? '♥ ' : '♡ ') + n; like.style.color = liked ? 'var(--accent)' : ''; };
+    draw();
+    like.addEventListener('click', async () => {
+      try { const r = await api(liked ? 'DELETE' : 'PUT', `/comments/${c.id}/like`); liked = r.liked; n = r.likeCount; draw(); } catch (e) { if (!(e instanceof Stale)) toast(errText(e), 'error'); }
+    });
+    const node = h('div', { class: 'comment' },
+      h('div', { class: 'row small' }, h('b', null, c.author.nickname), c.isSecret && h('span', { class: 'badge warn' }, t('비밀')), h('span', { class: 'faint' }, ago(c.createdAt)), h('span', { class: 'grow' }), like,
+        c.isMine ? h('button', { class: 'btn sm', onclick: async () => { try { await api('DELETE', `/comments/${c.id}`); node.remove(); } catch (e) { if (!(e instanceof Stale)) toast(errText(e), 'error'); } } }, t('삭제'))
+          : [h('button', { class: 'btn sm', onclick: () => dmRequestSheet({ toUserId: c.author.id }, c.author.nickname) }, '1:1'),
+             h('button', { class: 'btn sm', onclick: () => reportSheet('comment', c.id) }, t('신고'))]),
+      h('div', { class: 'post-body', style: 'margin-top:4px' }, c.body));
+    return node;
+  }
+
+  load();
+  return { el, resume: load };
+}
+
+/* ════════════════════════════════════════════════════════════════════
+   Shared sheets: DM request, report, block
+   ════════════════════════════════════════════════════════════════════ */
+function dmRequestSheet(target, nickname) {
+  const msg = h('textarea', { class: 'field', rows: 3, maxlength: 200, placeholder: t('첫 인사를 남겨주세요 (선택)'), 'aria-label': t('신청 메시지') });
+  const send = h('button', { class: 'btn primary block', onclick: async () => {
+    send.disabled = true;
+    try {
+      await api('POST', '/dm/requests', { ...target, message: msg.value.trim() || undefined });
+      closeSheet(); toast(t('대화를 신청했어요. 상대가 수락하면 대화할 수 있어요.'), 'ok');
+    } catch (e) {
+      if (e instanceof Stale) return;
+      toast(errText(e), 'error'); send.disabled = false;
+    }
+  } }, t('신청 보내기'));
+  openSheet(t('1:1 대화 신청'), h('div', { class: 'stack' }, h('p', { class: 'muted' }, t('{name}님에게 익명 1:1 대화를 신청해요. 상대가 수락하기 전에는 메시지를 보낼 수 없어요.', { name: nickname })), msg, send));
+}
+function reportSheet(targetType, targetId) {
+  const reason = h('textarea', { class: 'field', rows: 3, maxlength: 500, placeholder: t('신고 사유'), 'aria-label': t('신고 사유') });
+  const send = h('button', { class: 'btn primary block', onclick: async () => {
+    if (!reason.value.trim()) { toast(t('사유를 입력해 주세요.'), 'error'); return; }
+    send.disabled = true;
+    try { const r = await api('POST', '/safety/reports', { targetType, targetId, reason: reason.value.trim() }); closeSheet(); toast(r.duplicate ? t('이미 신고한 항목이에요.') : t('신고를 접수했어요.'), 'ok'); }
+    catch (e) { if (!(e instanceof Stale)) { toast(errText(e), 'error'); send.disabled = false; } }
+  } }, t('신고하기'));
+  openSheet(t('신고'), h('div', { class: 'stack' }, reason, send));
+}
+function blockSheet(userId, nickname, after) {
+  confirmSheet(t('차단'), t('{name}님을 차단하면 서로 1:1 대화와 신청이 막히고, 상대의 글과 댓글이 보이지 않아요.', { name: nickname }), t('차단'), async () => {
+    await api('POST', '/safety/blocks', { userId });
+    toast(t('차단했어요.'), 'ok');
+    after?.();
+  }, true);
+}
+
+/* ════════════════════════════════════════════════════════════════════
+   플레이스 — places (F10)
+   ════════════════════════════════════════════════════════════════════ */
+function hoursTags(p) {
+  if (p.hoursStatus === 'unknown') return [h('span', { class: 'badge' }, t('영업시간 미등록'))];
+  return [
+    p.closedOnDate && h('span', { class: 'badge danger' }, t('선택일 휴무')),
+    p.openNow && h('span', { class: 'badge ok' }, t('지금 영업 중')),
+    p.allDay && h('span', { class: 'badge primary' }, t('24시')),
+    p.lateNight && !p.allDay && h('span', { class: 'badge primary' }, t('심야')),
+    p.weekend && h('span', { class: 'badge accent' }, t('토·일 영업')),
+  ].filter(Boolean);
+}
+
+function viewPlaces(opts = {}) {
+  const f = { category: '', region: '', filter: new Set(), date: todayKst(), saved: !!opts.saved };
+  const catBtns = PLACE_CATS.map(([id, label, em, bg]) => h('button', { class: 'cat', style: `background:${bg}`, 'aria-pressed': 'false', onclick: () => {
+    f.category = f.category === id ? '' : id;
+    catBtns.forEach((b, i) => b.setAttribute('aria-pressed', String(PLACE_CATS[i][0] === f.category)));
+    list.reload();
+  } }, h('span', { class: 'em', 'aria-hidden': 'true' }, em), label));
+  // 의뢰서 ⑩: 심야·24시 / 주말 영업 가게만 따로 보는 탭
+  f.tab = 'all';
+  const TAB_FILTER = { all: null, lateNight: 'lateNight', weekend: 'weekend' };
+  const tabBtns = [['all', t('전체')], ['lateNight', t('심야 · 24시')], ['weekend', t('주말 영업')]].map(([k, label]) =>
+    h('button', { class: 'tab-item', role: 'tab', 'aria-selected': String(k === f.tab), onclick: () => {
+      f.tab = k;
+      tabBtns.forEach(b => b.setAttribute('aria-selected', String(b.dataset.k === k)));
+      list.reload();
+    } }, label));
+  tabBtns.forEach((b, i) => (b.dataset.k = ['all', 'lateNight', 'weekend'][i]));
+  const tabRow = h('div', { class: 'tab-row', role: 'tablist', 'aria-label': t('영업 시간대') }, tabBtns);
+  const filterChips = h('div', { class: 'chips' }, [['openNow', t('지금 영업 중')]].map(([k, label]) =>
+    h('button', { class: 'chip', 'aria-pressed': 'false', onclick: e => { f.filter.has(k) ? f.filter.delete(k) : f.filter.add(k); e.currentTarget.setAttribute('aria-pressed', String(f.filter.has(k))); list.reload(); } }, label)),
+    h('button', { class: 'chip', 'aria-pressed': String(f.saved), onclick: e => { f.saved = !f.saved; e.currentTarget.setAttribute('aria-pressed', String(f.saved)); list.reload(); } }, t('♡ 찜')));
+  const dateInput = h('input', { class: 'field', type: 'date', value: f.date, style: 'width:auto;padding:7px 10px', 'aria-label': t('기준 날짜') });
+  dateInput.addEventListener('change', () => { if (dateInput.value) { f.date = dateInput.value; list.reload(); } });
+
+  const list = pagedList({
+    fetchPage: cursor => api('GET', '/places' + qs({ category: f.category, region: f.region, filter: [TAB_FILTER[f.tab], ...f.filter].filter(Boolean).join(','), date: f.date, saved: f.saved && 'true', cursor, limit: 12 })),
+    renderItem: p => {
+      const [, , em, bg] = PLACE_CAT[p.category] || ['', '', '📍', 'var(--surface-2)'];
+      return h('div', { class: 'card click place-card', role: 'button', tabindex: 0, onclick: () => placeSheet(p.id, f.date), onkeydown: e => e.key === 'Enter' && placeSheet(p.id, f.date) },
+        h('div', { class: 'place-thumb', style: `background:${bg}`, 'aria-hidden': 'true' }, em),
+        h('div', { class: 'grow' },
+          h('div', { class: 'between' }, h('b', { class: 'ellipsis' }, p.name), heartBtn(p.saved, saveToggle('place', p.id))),
+          h('div', { class: 'small muted' }, [REGIONS[p.region] || p.region, (PLACE_CAT[p.category] || [])[1]].filter(Boolean).join(' · '), p.recommended && h('span', { class: 'badge', style: 'margin-left:6px' }, t('추천(합성)'))),
+          h('div', { class: 'tags' }, hoursTags(p))));
+    },
+    emptyText: () => (f.saved ? t('찜한 장소가 없어요.') : t('조건에 맞는 장소가 없어요.')),
+  });
+  const el = h('div', { class: 'view' },
+    opts.withBack ? h('div', { class: 'view-head' }, backBtn(), h('h1', { class: 'view-title' }, t('플레이스'))) : h('h1', { class: 'view-title' }, t('플레이스')),
+    h('p', { class: 'view-sub' }, t('헤메·홀복·시술부터 놀거리까지. 영업 시간은 날짜 기준(KST)으로 판단해요.')),
+    tabRow,
+    h('div', { class: 'cat-grid' }, catBtns),
+    filterChips,
+    h('div', { class: 'between' }, h('div', { class: 'grow' }, chipGroup(Object.entries(REGIONS), '', v => { f.region = v; list.reload(); })), dateInput),
+    list.el);
+  list.reload();
+  return { el, resume: () => list.reload() };
+}
+
+async function placeSheet(id, date) {
+  const content = h('div', null, skeletons(2));
+  openSheet(t('장소 정보'), content);
+  try {
+    const p = await api('GET', `/places/${id}?date=${date}`);
+    const byDay = WEEKDAYS.map((d, i) => [d, p.hours.filter(x => x.weekday === i)]);
+    content.replaceChildren(h('div', { class: 'stack' },
+      h('div', null, h('h3', { style: 'font-size:18px;font-weight:800' }, p.name), h('div', { class: 'small muted' }, [REGIONS[p.region] || p.region, (PLACE_CAT[p.category] || [])[1]].filter(Boolean).join(' · '))),
+      h('div', { class: 'tags' }, hoursTags(p)),
+      p.hoursStatus === 'unknown' ? h('p', { class: 'muted' }, t('영업시간이 등록되지 않았어요. (휴무와 다릅니다)')) :
+        h('table', { class: 'hours-table' }, h('tbody', null, byDay.map(([d, list]) => h('tr', null, h('td', null, d),
+          h('td', null, list.length ? list.map(x => `${x.open}–${x.close}${x.overnight ? t(' (다음날)') : ''}`).join(', ') : h('span', { class: 'faint' }, t('휴무'))))))),
+      p.closures.length > 0 && h('p', { class: 'small muted' }, t('임시 휴무: ') + p.closures.join(', ')),
+      h('p', { class: 'faint small' }, t('{date} 기준 · 심야는 22:00~다음날 06:00 영업 여부로 판단해요.', { date: p.date }))));
+  } catch (e) { if (!(e instanceof Stale)) content.replaceChildren(errorBox(e)); }
+}
+
+/* ════════════════════════════════════════════════════════════════════
+   마이페이지 — profile, DM (F04), notifications & push prefs (F05), privacy (F08)
+   ════════════════════════════════════════════════════════════════════ */
+function viewMy() {
+  const content = h('div', { class: 'stack' }, skeletons(3));
+  const el = h('div', { class: 'view' }, h('h1', { class: 'view-title' }, t('마이페이지')), content);
+  async function load() {
+    let me;
+    try { me = await api('GET', '/me'); } catch (e) { if (!(e instanceof Stale)) content.replaceChildren(errorBox(e, load)); return; }
+    S.counts = me.counts; drawTabs();
+    const roleLabel = { member: t('일반'), operator: t('운영자'), admin: t('관리자') }[me.role];
+    const row = (ic, label, onclick, extra) => h('button', { class: 'menu-row', onclick }, icon(ic), h('span', { class: 'grow' }, label), extra, h('span', { class: 'faint' }, '›'));
+    content.replaceChildren(
+      h('div', { class: 'card profile' }, h('div', { class: 'avatar' }, me.nickname.slice(0, 1)),
+        h('div', { class: 'grow' }, h('span', { class: 'badge primary' }, roleLabel), h('div', { style: 'font-size:18px;font-weight:800;margin-top:2px' }, me.nickname), h('div', { class: 'faint small' }, t('합성 계정 · ') + me.id))),
+      h('div', { class: 'card counts' },
+        h('div', null, h('b', null, me.counts.unreadNotifications), h('span', null, t('안 읽은 알림'))),
+        h('div', null, h('b', null, me.counts.pendingDmRequests), h('span', null, t('받은 신청'))),
+        h('div', null, h('b', null, me.counts.myPosts), h('span', null, t('작성글'))),
+        h('div', null, h('b', null, me.counts.saved), h('span', null, t('찜')))),
+      h('div', { class: 'card', style: 'padding-top:4px;padding-bottom:4px' },
+        row('chat', t('1:1 대화'), () => push(viewConversations())),
+        row('inbox', t('대화 신청함'), () => push(viewRequests()), me.counts.pendingDmRequests > 0 && h('span', { class: 'badge accent' }, me.counts.pendingDmRequests)),
+        row('bell', t('알림'), () => push(viewNotifications()), me.counts.unreadNotifications > 0 && h('span', { class: 'badge accent' }, me.counts.unreadNotifications)),
+        row('heart', t('찜한 장소'), () => push(viewPlaces({ saved: true, withBack: true })))),
+      h('div', { class: 'card', style: 'padding-top:4px;padding-bottom:4px' },
+        row('settings', t('알림 설정'), () => push(viewPushPrefs())),
+        h('div', { class: 'menu-row' }, icon('user'), h('span', { class: 'grow' }, t('최근 접속 공개'), h('div', { class: 'faint small' }, t('담당자 카드에 최근 접속 시각을 보여줘요.'))),
+          switchBtn(me.showLastSeen, on => api('PATCH', '/me/privacy', { showLastSeen: on }), t('최근 접속 공개'))),
+        row('shield', t('차단 목록'), () => push(viewBlocks())),
+        appLockRow()),
+      h('div', { class: 'card', style: 'padding-top:4px;padding-bottom:4px' },
+        h('button', { class: 'menu-row', onclick: logout }, icon('logout'), h('span', { class: 'grow' }, t('로그아웃'))),
+        h('button', { class: 'menu-row', style: 'color:var(--danger)', onclick: () => confirmSheet(t('탈퇴 (합성 계정)'), t('이 합성 계정을 비활성화하고 모든 세션을 종료해요. 실제 운영 데이터 삭제가 아닙니다. 다시 쓰려면 개발 DB를 초기화해야 해요.'), t('탈퇴'), async () => { await api('DELETE', '/me'); endSession(t('탈퇴 처리되었어요.')); }, true) }, icon('x'), h('span', { class: 'grow' }, t('탈퇴')))));
+  }
+  load();
+  return { el, resume: load };
+}
+
+function viewRequests() {
+  const box = { v: 'received' };
+  const list = h('div', { class: 'list' });
+  const el = h('div', { class: 'view' },
+    h('div', { class: 'view-head' }, backBtn(), h('h1', { class: 'view-title' }, t('대화 신청함'))),
+    chipGroup([['received', t('받은 신청')], ['sent', t('보낸 신청')]], 'received', v => { box.v = v; load(); }),
+    list);
+  const STATUS = { pending: [t('대기'), 'warn'], accepted: [t('수락'), 'ok'], rejected: [t('거절'), 'danger'], cancelled: [t('취소'), ''] };
+  async function load() {
+    list.replaceChildren(skeletons(2));
+    try {
+      const r = await api('GET', `/dm/requests?box=${box.v}`);
+      if (!r.items.length) { list.replaceChildren(empty(box.v === 'received' ? t('받은 신청이 없어요.') : t('보낸 신청이 없어요.'))); return; }
+      list.replaceChildren(...r.items.map(q => {
+        const other = box.v === 'received' ? q.fromUser : q.toUser;
+        const [st, cls] = STATUS[q.status];
+        const act = async (path, okText) => {
+          try { const res = await api('POST', `/dm/requests/${q.id}/${path}`); toast(okText, 'ok'); refreshCounts();
+            if (res.conversationId) push(viewDm(res.conversationId, other)); else load(); }
+          catch (e) { if (!(e instanceof Stale)) { toast(errText(e), 'error'); load(); } }
+        };
+        return h('div', { class: 'card stack' },
+          h('div', { class: 'between' }, h('div', { class: 'row' }, h('div', { class: 'avatar sm' }, (other.nickname || '?').slice(0, 1)), h('b', null, other.nickname || t('알 수 없음'))), h('span', { class: 'badge ' + cls }, st)),
+          q.message && h('p', { class: 'muted' }, q.message),
+          h('div', { class: 'faint small' }, (q.postId ? t('게시글에서 신청 · ') : '') + ago(q.createdAt)),
+          q.status === 'pending' && box.v === 'received' && h('div', { class: 'row' }, h('button', { class: 'btn primary sm', onclick: () => act('accept', t('수락했어요. 이제 대화할 수 있어요.')) }, t('수락')), h('button', { class: 'btn sm', onclick: () => act('reject', t('거절했어요.')) }, t('거절'))),
+          q.status === 'pending' && box.v === 'sent' && h('div', { class: 'row' }, h('button', { class: 'btn sm', onclick: () => act('cancel', t('신청을 취소했어요.')) }, t('신청 취소'))),
+          q.status === 'accepted' && q.conversationId && h('div', { class: 'row' }, h('button', { class: 'btn sm', onclick: () => push(viewDm(q.conversationId, other)) }, t('대화 열기'))));
+      }));
+    } catch (e) { if (!(e instanceof Stale)) list.replaceChildren(errorBox(e, load)); }
+  }
+  load();
+  return { el, resume: load };
+}
+
+function viewConversations() {
+  const list = h('div', { class: 'list' });
+  const el = h('div', { class: 'view' }, h('div', { class: 'view-head' }, backBtn(), h('h1', { class: 'view-title' }, t('1:1 대화'))), list);
+  async function load() {
+    list.replaceChildren(skeletons(3));
+    try {
+      const r = await api('GET', '/dm/conversations');
+      list.replaceChildren(...(r.items.length ? r.items.map(cv => h('button', { class: 'card click row', onclick: () => push(viewDm(cv.id, cv.other)) },
+        h('div', { class: 'avatar sm' }, cv.other.nickname.slice(0, 1)),
+        h('div', { class: 'grow', style: 'min-width:0' }, h('div', { class: 'row' }, h('b', null, cv.other.nickname), cv.blocked && h('span', { class: 'badge danger' }, t('차단'))),
+          h('div', { class: 'small muted ellipsis' }, cv.lastMessage ? (cv.lastMessage.body || (cv.lastMessage.hasMedia ? t('사진') : '')) : t('아직 메시지가 없어요.'))),
+        h('div', { style: 'text-align:right' }, h('div', { class: 'faint small nowrap' }, cv.lastMessage ? ago(cv.lastMessage.createdAt) : ''), cv.unread > 0 && h('span', { class: 'badge accent' }, cv.unread))))
+        : [empty(t('수락된 대화가 없어요. 라운지 글이나 담당자 카드에서 대화를 신청해 보세요.'))]));
+    } catch (e) { if (!(e instanceof Stale)) list.replaceChildren(errorBox(e, load)); }
+  }
+  load();
+  return { el, resume: load };
+}
+
+function viewDm(convId, other) {
+  const badge = connBadge();
+  const body = h('div', { class: 'room-layout' }, skeletons(2));
+  const el = h('div', { class: 'view fill' },
+    h('div', { class: 'view-head' }, backBtn(), h('div', { class: 'avatar sm' }, (other?.nickname || '?').slice(0, 1)), h('b', { class: 'grow ellipsis' }, other?.nickname || t('1:1 대화')), badge.el,
+      h('button', { class: 'icon-btn', 'aria-label': t('더보기'), onclick: () => openSheet(t('대화 메뉴'), h('div', null,
+        h('button', { class: 'menu-row', onclick: () => reportSheet('user', other.id) }, icon('shield'), t('신고')),
+        h('button', { class: 'menu-row', style: 'color:var(--danger)', onclick: () => blockSheet(other.id, other.nickname, () => chat?.disable(t('차단한 상대와는 대화할 수 없어요.'))) }, icon('x'), t('차단')))) }, icon('more'))),
+    h('p', { class: 'faint small' }, t('익명 대화예요. 수락한 두 사람만 볼 수 있어요.')),
+    body);
+  let live, chat, lastOtherSeq = 0;
+  const markRead = () => {
+    if (!chat || chat.lastSeq <= lastOtherSeq) return;
+    lastOtherSeq = chat.lastSeq;
+    api('POST', `/dm/conversations/${convId}/read`, { seq: chat.lastSeq }).then(refreshCounts).catch(() => {});
+  };
+  async function load() {
+    chat = createChat({ showNick: false, send: p => api('POST', `/dm/conversations/${convId}/messages`, p) });
+    try {
+      const r = await api('GET', `/dm/conversations/${convId}/messages?limit=50`);
+      body.replaceChildren(chat.el);
+      chat.load(r.items);
+      chat.markOwnRead(r.otherLastReadSeq);
+      markRead();
+    } catch (e) {
+      if (e instanceof Stale) return;
+      body.replaceChildren(errorBox(e, load));
+      return;
+    }
+    live?.close();
+    live = new Live(`dm:${convId}`, {
+      onState: s => badge.set(s),
+      onReady: async () => { try { const r = await api('GET', `/dm/conversations/${convId}/messages?afterSeq=${chat.lastSeq}&limit=200`); r.items.forEach(chat.add); markRead(); } catch {} },
+      onEvent: ev => {
+        if (ev.type === 'message') { chat.add(ev.message); if (ev.message.senderId !== S.user.id && document.visibilityState === 'visible') markRead(); }
+        else if (ev.type === 'read' && ev.userId !== S.user.id) chat.markOwnRead(ev.seq);
+        else if (ev.type === 'revoked') chat.disable(t('차단되어 대화가 중단되었어요.'));
+      },
+    });
+  }
+  const onVis = () => document.visibilityState === 'visible' && markRead();
+  document.addEventListener('visibilitychange', onVis);
+  load();
+  return { el, cleanup: () => { live?.close(); document.removeEventListener('visibilitychange', onVis); }, pause: () => { live?.close(); live = null; }, resume: load };
+}
+
+function viewNotifications() {
+  const readAll = h('button', { class: 'btn sm', onclick: async () => { try { await api('POST', '/notifications/read', { all: true }); refreshCounts(); list.reload(); } catch (e) { if (!(e instanceof Stale)) toast(errText(e), 'error'); } } }, t('모두 읽음'));
+  const TYPE = { comment: t('댓글'), dm: '1:1', saved: t('찜') };
+  const list = pagedList({
+    fetchPage: cursor => api('GET', '/notifications' + qs({ cursor, limit: 30 })),
+    renderItem: n => h('div', { class: 'card' + (n.link ? ' click' : ''), style: n.read ? 'opacity:.6' : '',
+        role: n.link ? 'button' : null, tabindex: n.link ? 0 : null,
+        onclick: n.link ? () => openLink(n.link) : null, onkeydown: n.link ? e => e.key === 'Enter' && openLink(n.link) : null },
+      h('div', { class: 'row' }, h('span', { class: 'badge primary' }, TYPE[n.type] || n.type), h('b', { class: 'grow' }, trServer(n.title)), h('span', { class: 'faint small nowrap' }, ago(n.createdAt))),
+      n.body && h('p', { class: 'muted small', style: 'margin-top:4px' }, trServer(n.body))),
+    emptyText: t('알림이 없어요.'),
+  });
+  const el = h('div', { class: 'view' }, h('div', { class: 'view-head' }, backBtn(), h('h1', { class: 'view-title grow' }, t('알림')), readAll),
+    h('p', { class: 'faint small' }, t('비밀 댓글과 1:1 메시지 내용은 알림에 표시되지 않아요.')), list.el);
+  list.reload();
+  return { el, resume: () => list.reload() };
+}
+
+function viewPushPrefs() {
+  const content = h('div', { class: 'stack' }, skeletons(2));
+  const el = h('div', { class: 'view' }, h('div', { class: 'view-head' }, backBtn(), h('h1', { class: 'view-title' }, t('알림 설정'))), content);
+  async function load() {
+    let p;
+    try { p = await api('GET', '/push/preferences'); } catch (e) { if (!(e instanceof Stale)) content.replaceChildren(errorBox(e, load)); return; }
+    const put = body => api('PUT', '/push/preferences', body);
+    const line = (label, sub, sw) => h('div', { class: 'menu-row' }, h('span', { class: 'grow' }, label, sub && h('div', { class: 'faint small' }, sub)), sw);
+    const start = h('input', { class: 'field', type: 'time', value: p.dnd?.start || '23:00', style: 'width:auto', 'aria-label': t('방해 금지 시작') });
+    const end = h('input', { class: 'field', type: 'time', value: p.dnd?.end || '08:00', style: 'width:auto', 'aria-label': t('방해 금지 종료') });
+    const times = h('div', { class: 'row' + (p.dnd ? '' : ' hidden'), style: 'padding:0 4px 12px' }, start, '~', end, h('button', { class: 'btn sm', onclick: async () => { try { await put({ dnd: { start: start.value, end: end.value } }); toast(t('저장했어요.'), 'ok'); } catch (e) { if (!(e instanceof Stale)) toast(errText(e), 'error'); } } }, t('저장')));
+    content.replaceChildren(
+      h('div', { class: 'dev-banner' }, t('실제 휴대폰 푸시(FCM/APNs) 발송은 아직 연결되지 않았어요. 설정은 서버에 저장되고 알림함에는 바로 반영돼요.')),
+      h('div', { class: 'card', style: 'padding-top:4px;padding-bottom:4px' },
+        line(t('댓글 알림'), t('내 글에 댓글이 달리면'), switchBtn(p.comment, on => put({ comment: on }), t('댓글 알림'))),
+        line(t('1:1 대화 알림'), t('신청·수락·새 메시지'), switchBtn(p.dm, on => put({ dm: on }), t('1:1 대화 알림'))),
+        line(t('찜 알림'), t('찜한 방·장소 소식'), switchBtn(p.saved, on => put({ saved: on }), t('찜 알림'))),
+        line(t('알림 내용 숨기기'), t('푸시에 “새 알림이 있습니다”로만 표시'), switchBtn(p.hideContent, on => put({ hideContent: on }), t('알림 내용 숨기기'))),
+        line(t('방해 금지 시간'), t('이 시간에는 푸시를 보내지 않아요 (KST)'), switchBtn(!!p.dnd, async on => { await put({ dnd: on ? { start: start.value, end: end.value } : null }); times.classList.toggle('hidden', !on); }, t('방해 금지 시간'))),
+        times));
+  }
+  load();
+  return { el };
+}
+
+function viewBlocks() {
+  const list = h('div', { class: 'list' });
+  const el = h('div', { class: 'view' }, h('div', { class: 'view-head' }, backBtn(), h('h1', { class: 'view-title' }, t('차단 목록'))), list);
+  async function load() {
+    list.replaceChildren(skeletons(2));
+    try {
+      const r = await api('GET', '/safety/blocks');
+      list.replaceChildren(...(r.items.length ? r.items.map(b => h('div', { class: 'card row' }, h('b', { class: 'grow' }, b.nickname), h('span', { class: 'faint small' }, ago(b.blockedAt)),
+        h('button', { class: 'btn sm', onclick: async () => { try { await api('DELETE', `/safety/blocks/${b.userId}`); toast(t('차단을 해제했어요.'), 'ok'); load(); } catch (e) { if (!(e instanceof Stale)) toast(errText(e), 'error'); } } }, t('해제'))))
+        : [empty(t('차단한 사람이 없어요.'))]));
+    } catch (e) { if (!(e instanceof Stale)) list.replaceChildren(errorBox(e, load)); }
+  }
+  load();
+  return { el };
+}
+
+/* ════════════════════════════════════════════════════════════════════
+   Session: intro → login (dev accounts) → app; logout clears everything
+   ════════════════════════════════════════════════════════════════════ */
+const DEV_ACCOUNTS = [
+  ['usera', t('테스트A'), t('일반 회원')], ['userb', t('테스트B'), t('일반 회원')], ['userc', t('테스트C'), t('일반 회원')],
+  ['manager1', t('합성 실장 하나'), t('가게 운영자')], ['admin1', t('운영자(합성)'), t('관리자')],
+];
+
+function show(id) {
+  for (const s of ['intro', 'login', 'shell']) $('#' + s).classList.toggle('hidden', s !== id);
+}
+
+async function showLogin() {
+  show('login');
+  const status = $('#api-status');
+  const errEl = $('#login-error');
+  errEl.replaceChildren();
+  const btns = DEV_ACCOUNTS.map(([id, nick, role]) => h('button', { class: 'account', disabled: true, onclick: () => login(id) }, h('b', null, nick), h('span', { class: 'faint small' }, role)));
+  $('#accounts').replaceChildren(...btns);
+  status.replaceChildren(h('span', { class: 'led wait' }), h('span', null, t('API 확인 중… ') + API));
+  try {
+    const res = await fetch(API + '/health');
+    const hb = await res.json();
+    status.replaceChildren(h('span', { class: 'led ok' }), h('span', null, t('API 연결됨 · {env} · {api}', { env: hb.environment, api: API })));
+    btns.forEach(b => (b.disabled = false));
+  } catch {
+    status.replaceChildren(h('span', { class: 'led bad' }), h('span', null, t('API에 연결할 수 없어요 · {api}', { api: API })));
+    errEl.replaceChildren(errorBox(new ApiError(0, 'network'), showLogin),
+      h('p', { class: 'faint small', style: 'margin-top:8px' }, t('backend 폴더에서 npm run dev 를 실행한 뒤 http://localhost:8787 로 접속하세요.')));
+  }
+}
+
+async function login(userId) {
+  const errEl = $('#login-error');
+  errEl.replaceChildren();
+  try {
+    const r = await api('POST', '/auth/dev-login', { userId }, { noAuthRedirect: true });
+    startSession(r.token, r.user);
+  } catch (e) {
+    if (e instanceof Stale) return;
+    const msg = e.status === 404 && e.code === 'not_found' && !e.message.includes('user')
+      ? t('이 서버는 개발용 로그인이 꺼져 있어요. 실서비스 로그인은 아직 연결되지 않았어요.')
+      : errText(e);
+    errEl.replaceChildren(h('div', { class: 'error-box' }, msg));
+  }
+}
+
+/* ════════════════════════════════════════════════════════════════════
+   Native app (Capacitor) — 의뢰서 ⑥ app lock + app links, ⑤ push.
+   Everything here is inert in a normal browser (window.HiunniNative is only in app builds).
+   ════════════════════════════════════════════════════════════════════ */
+const NATIVE = window.HiunniNative?.isNative ? window.HiunniNative : null;
+// The app keeps the session across launches (protected by the app lock and excluded from backups);
+// the browser keeps it for the tab only.
+const sessionStore = (() => { try { return NATIVE ? localStorage : sessionStorage; } catch { return null; } })();
+const LOCK_KEY = 'hiunni.applock';
+const LOCK_GRACE_MS = 30000; // back within 30 s → no new prompt
+let pendingLink = null, unlocking = false, unlockedAt = 0, backgroundedAt = 0, pushListenersReady = false;
+ERROR_TEXT.lock_unavailable = t('이 기기에서는 잠금을 쓸 수 없어요. 휴대폰 화면 잠금(지문·Face ID·비밀번호)을 먼저 설정해 주세요.');
+ERROR_TEXT.lock_cancelled = t('인증이 취소되었어요.');
+
+const lockEnabled = () => { try { return localStorage.getItem(LOCK_KEY) === '1'; } catch { return false; } };
+
+async function biometricAvailable() {
+  try { return !!(await NATIVE.NativeBiometric.isAvailable({ useFallback: true })).isAvailable; } catch { return false; }
+}
+async function verifyUser(reason) {
+  try {
+    await NATIVE.NativeBiometric.verifyIdentity({
+      reason, title: t('하이언니'), subtitle: reason,
+      useFallback: true, fallbackTitle: t('비밀번호 사용'), // iOS: device passcode fallback
+      // Android: fingerprint, face, iris, or the phone's PIN/pattern/password
+      ...(NATIVE.platform === 'android' ? { allowedBiometryTypes: [3, 4, 5, 7] } : {}),
+    });
+  } catch { throw new ApiError(0, 'lock_cancelled'); }
+}
+async function unlock() {
+  if (unlocking) return;
+  unlocking = true;
+  try { await verifyUser(t('앱 잠금 해제')); unlockedAt = Date.now(); $('#lock').classList.add('hidden'); }
+  catch { /* stays locked; the button retries */ }
+  unlocking = false;
+}
+
+/** Route an app link / notification link: https://hiunni.kr/posts/<id>, hiunni://rooms/<id>, /dm/<id> … */
+async function openLink(raw) {
+  if (!raw) return;
+  let path;
+  try {
+    const u = new URL(raw, 'https://hiunni.kr');
+    path = u.protocol === 'hiunni:' ? '/' + u.host + u.pathname : u.pathname;
+  } catch { return; }
+  if (!S.token) { pendingLink = path; return; } // opened after login
+  const m = path.match(/^\/(rooms|posts|dm|places)\/(?:(requests)\/)?([A-Za-z0-9_-]{1,64})\/?$/);
+  if (!m) return;
+  const [, kind, sub, id] = m;
+  closeSheet();
+  if (kind === 'rooms') { switchTab('live'); push(viewRoom(id)); }
+  else if (kind === 'posts') { switchTab('lounge'); push(viewPost(id)); }
+  else if (kind === 'places') { switchTab('places'); placeSheet(id, todayKst()); }
+  else if (sub) { switchTab('my'); push(viewRequests()); }
+  else {
+    switchTab('my');
+    let other = null;
+    try { other = (await api('GET', '/dm/conversations')).items.find(c => c.id === id)?.other; } catch {}
+    push(other ? viewDm(id, other) : viewConversations());
+  }
+}
+
+async function registerPush() {
+  // Off until Firebase (google-services.json) and APNs are configured: HIUNNI_PUSH=1 at build time.
+  if (!NATIVE || !window.HIUNNI_CONFIG?.push) return;
+  const P = NATIVE.PushNotifications;
+  if (!pushListenersReady) {
+    pushListenersReady = true;
+    P.addListener('registration', reg => { if (S.token) api('PUT', '/push/devices', { platform: NATIVE.platform, token: reg.value }).catch(() => {}); });
+    P.addListener('registrationError', () => toast(t('푸시 알림을 켜지 못했어요.'), 'error'));
+    P.addListener('pushNotificationReceived', () => refreshCounts());
+    P.addListener('pushNotificationActionPerformed', a => openLink(a.notification?.data?.link));
+  }
+  try {
+    let perm = await P.checkPermissions();
+    if (perm.receive === 'prompt' || perm.receive === 'prompt-with-rationale') perm = await P.requestPermissions();
+    if (perm.receive === 'granted') await P.register();
+  } catch {}
+}
+
+async function initNative() {
+  if (!NATIVE) return;
+  try { await NATIVE.StatusBar.setStyle({ style: NATIVE.StatusBarStyle.Dark }); } catch {}
+  if (NATIVE.platform === 'android') { try { await NATIVE.StatusBar.setBackgroundColor({ color: '#131217' }); } catch {} }
+  NATIVE.App.addListener('appUrlOpen', e => openLink(e.url));
+  NATIVE.App.addListener('backButton', () => {
+    if ($('#sheet-root .sheet-back')) return closeSheet();
+    if (!$('#shell').classList.contains('hidden')) {
+      if (S.stack.length > 1) return back();
+      if (S.tab !== 'live') return switchTab('live');
+    } else if (!$('#login').classList.contains('hidden')) return show('intro');
+    NATIVE.App.minimizeApp();
+  });
+  NATIVE.App.addListener('appStateChange', ({ isActive }) => {
+    if (!lockEnabled()) return;
+    if (!isActive) {
+      // Cover the content right away so it never shows in the app switcher.
+      if (!unlocking) { backgroundedAt = Date.now(); $('#lock').classList.remove('hidden'); }
+      return;
+    }
+    if (unlocking) return; // the biometric prompt itself makes iOS briefly inactive
+    const graceOk = unlockedAt > 0 && backgroundedAt > 0 && Date.now() - backgroundedAt < LOCK_GRACE_MS;
+    if (graceOk) $('#lock').classList.add('hidden');
+    else { unlockedAt = 0; unlock(); }
+  });
+  $('#unlock-btn').addEventListener('click', unlock);
+  if (lockEnabled()) { $('#lock').classList.remove('hidden'); unlock(); }
+  try { await NATIVE.SplashScreen.hide(); } catch {}
+}
+
+function appLockRow() {
+  if (!NATIVE) return null;
+  return h('div', { class: 'menu-row' }, icon('lock'),
+    h('span', { class: 'grow' }, t('앱 잠금'), h('div', { class: 'faint small' }, t('Face ID·지문·휴대폰 비밀번호로 앱을 잠가요.'))),
+    switchBtn(lockEnabled(), async on => {
+      if (on) {
+        if (!(await biometricAvailable())) throw new ApiError(0, 'lock_unavailable');
+        await verifyUser(t('앱 잠금 켜기'));
+        unlockedAt = Date.now();
+      }
+      localStorage.setItem(LOCK_KEY, on ? '1' : '0');
+      toast(on ? t('앱 잠금을 켰어요.') : t('앱 잠금을 껐어요.'), 'ok');
+    }, t('앱 잠금')));
+}
+
+let countsTimer = null;
+function startSession(token, user) {
+  S.epoch++;
+  S.token = token; S.user = user;
+  try { sessionStore?.setItem('hiunni.session', JSON.stringify({ token, user })); } catch {}
+  show('shell');
+  switchTab('live');
+  refreshCounts();
+  clearInterval(countsTimer);
+  countsTimer = setInterval(refreshCounts, 20000);
+  registerPush();
+  if (pendingLink) { const p = pendingLink; pendingLink = null; openLink(p); }
+}
+
+async function refreshCounts() {
+  try { const me = await api('GET', '/me'); S.counts = me.counts; drawTabs(); } catch {}
+}
+
+/** Clear all session state. Late responses from the old session are dropped via S.epoch. */
+function endSession(message) {
+  S.epoch++;
+  clearStack();
+  closeSheet();
+  clearInterval(countsTimer);
+  S.token = null; S.user = null; S.counts = null; S.mediaUrls.clear();
+  pendingLink = null;
+  try { sessionStore?.removeItem('hiunni.session'); } catch {}
+  $('#main').replaceChildren();
+  show('intro');
+  if (message) toast(message);
+}
+
+async function logout() {
+  try { await api('POST', '/auth/logout'); } catch {}
+  endSession(t('로그아웃했어요.'));
+}
+
+$('#intro-start').addEventListener('click', showLogin);
+$('#login-back').addEventListener('click', () => show('intro'));
+$('#bell').addEventListener('click', () => { if (S.tab !== 'my') switchTab('my'); push(viewNotifications()); });
+
+(async function boot() {
+  await initNative();
+  let saved = null;
+  try { saved = JSON.parse(sessionStore?.getItem('hiunni.session') || 'null'); } catch {}
+  if (saved?.token) {
+    S.token = saved.token;
+    try {
+      const me = await api('GET', '/me', undefined, { noAuthRedirect: true });
+      startSession(saved.token, { id: me.id, nickname: me.nickname, role: me.role });
+      return;
+    } catch (e) {
+      S.token = null;
+      // Only forget the session if the server rejected it, not when the network is down.
+      if (e.status === 401) { try { sessionStore?.removeItem('hiunni.session'); } catch {} }
+      else if (saved?.token) toast(t('서버에 연결할 수 없어요. 잠시 후 다시 시도해 주세요.'), 'error');
+    }
+  }
+  show('intro');
+})();
+</script>
+</body>
+</html>

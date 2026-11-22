@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="utf-8"?>
+<shortcuts xmlns:android="http://schemas.android.com/apk/res/android">
+    <shortcut android:shortcutId="information" android:shortcutShortLabel="@string/information" android:icon="@mipmap/ic_launcher">
+        <intent android:action="android.intent.action.VIEW" android:targetPackage="app.hiunni.mobile" android:targetClass="app.hiunni.mobile.ShortcutActivity" android:data="https://hiunni.kr/#information" />
+    </shortcut>
+    <shortcut android:shortcutId="livechat" android:shortcutShortLabel="@string/livechat" android:icon="@mipmap/ic_launcher">
+        <intent android:action="android.intent.action.VIEW" android:targetPackage="app.hiunni.mobile" android:targetClass="app.hiunni.mobile.ShortcutActivity" android:data="https://hiunni.kr/#talk?view=rooms" />
+    </shortcut>
+    <shortcut android:shortcutId="meetups" android:shortcutShortLabel="@string/meetups" android:icon="@mipmap/ic_launcher">
+        <intent android:action="android.intent.action.VIEW" android:targetPackage="app.hiunni.mobile" android:targetClass="app.hiunni.mobile.ShortcutActivity" android:data="https://hiunni.kr/#meetups" />
+    </shortcut>
+</shortcuts>

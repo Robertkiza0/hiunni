@@ -1,0 +1,35 @@
+# Dependencies / build output
+node_modules/
+.wrangler/
+**/.gradle/
+**/build/
+dist/
+**/DerivedData/
+**/xcuserdata/
+*.apk
+*.aab
+*.ipa
+
+# Local config and secrets
+.env
+.env.*
+.dev.vars
+**/local.properties
+**/*.keystore
+**/*.jks
+**/*.p12
+**/*.pem
+**/*.mobileprovision
+**/Signing.xcconfig
+google-services.json
+GoogleService-Info.plist
+
+# Confidential client material (NDA, contract art. 11) - keep local only
+docs/01_Contract_And_Original_Request/
+
+# Local working files
+design/local/
+
+# OS / editor noise
+Thumbs.db
+.DS_Store

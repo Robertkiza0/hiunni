@@ -1,0 +1,14 @@
+[
+  {
+    "relation": [
+      "delegate_permission/common.handle_all_urls"
+    ],
+    "target": {
+      "namespace": "android_app",
+      "package_name": "app.hiunni.mobile",
+      "sha256_cert_fingerprints": [
+        "90:D4:29:CF:9C:5C:12:79:53:29:D1:33:78:86:88:08:67:95:A2:7E:34:86:84:75:41:45:BA:19:63:FE:BE:0B"
+      ]
+    }
+  }
+]

@@ -1,0 +1,30 @@
+// HIUNNI API Worker — staging/local candidate. NOT the production worker.
+// database_id / bucket names are placeholders: replace with the client's own
+// Cloudflare account resources once access is granted (see README).
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "hiunni-api",
+  "main": "src/index.ts",
+  "compatibility_date": "2026-11-01",
+  // Serves the web prototype (../web) from the same origin as the API.
+  // Paths that are not files fall through to the Worker.
+  "assets": { "directory": "../web" },
+  "d1_databases": [
+    {
+      "binding": "DB",
+      "database_name": "hiunni-db",
+      "database_id": "00000000-0000-0000-0000-000000000000",
+      "migrations_dir": "migrations"
+    }
+  ],
+  "r2_buckets": [{ "binding": "MEDIA", "bucket_name": "hiunni-media" }],
+  "durable_objects": {
+    "bindings": [{ "name": "HUB", "class_name": "ChannelHub" }]
+  },
+  "migrations": [{ "tag": "v1", "new_sqlite_classes": ["ChannelHub"] }],
+  "vars": {
+    "ENVIRONMENT": "development",
+    "DEV_LOGIN_ENABLED": "true",
+    "ALLOWED_ORIGINS": "http://localhost:8787,http://localhost:5173,capacitor://localhost,https://localhost"
+  }
+}
