@@ -32,7 +32,7 @@ if (!marker.test(html)) {
 const cfg = { apiBase, push: false, env: 'staging' };
 const inject = `<script>window.HIUNNI_CONFIG=${JSON.stringify(cfg).replace(/</g, '\\u003c')};</script>\n`;
 
-fs.rmSync(out, { recursive: true, force: true });
+// Keep dist/ itself (and its .vercel project link) so `vercel deploy` targets the same project.
 fs.mkdirSync(out, { recursive: true });
 fs.writeFileSync(path.join(out, 'index.html'), html.replace(marker, m => inject + m));
 fs.copyFileSync(path.join(here, 'vercel.json'), path.join(out, 'vercel.json'));
