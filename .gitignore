@@ -4,6 +4,7 @@ node_modules/
 **/.gradle/
 **/build/
 dist/
+.vercel/
 **/DerivedData/
 **/xcuserdata/
 *.apk
