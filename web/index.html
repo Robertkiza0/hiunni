@@ -2,7 +2,7 @@
 <html lang="ko">
 <head>
 <meta charset="UTF-8" />
-<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, interactive-widget=resizes-content" />
 <meta name="theme-color" content="#131217" />
 <title data-i18n>하이언니</title>
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='8' fill='%23825ED0'/%3E%3Ctext x='16' y='22' font-size='16' font-weight='900' text-anchor='middle' fill='white' font-family='sans-serif' letter-spacing='-1'%3Ehi%3C/text%3E%3C/svg%3E" />
@@ -206,23 +206,80 @@
   .menu-row .icon { color: var(--primary-text); }
 
   /* ── Rooms / live status ─────────────────────────────── */
-  .room-card .title { font-weight: 700; font-size: 15px; }
-  .stats4 { display: grid; grid-template-columns: repeat(4, 1fr); gap: 6px; margin-top: 10px; }
-  .stat { background: var(--surface-2); border-radius: 10px; padding: 8px 4px; text-align: center; }
-  .stat b { display: block; font-size: 18px; font-weight: 800; font-variant-numeric: tabular-nums; }
-  .stat span { font-size: 11px; color: var(--text-3); }
+  .room-card { padding: 14px 14px 12px 16px; }
+  .room-head { display: flex; align-items: flex-start; gap: 6px; }
+  .room-head .icon-btn { width: 44px; height: 44px; margin: -8px -8px 0 0; flex-shrink: 0; }
+  /* Long Korean venue names: break between words, never mid-word, up to two lines. */
+  .venue-name { font-weight: 800; font-size: 17px; line-height: 1.35; letter-spacing: -.2px; word-break: keep-all; overflow-wrap: anywhere; display: -webkit-box; -webkit-line-clamp: 2; line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+  .room-meta { margin-top: 3px; font-size: 13px; color: var(--text-2); }
+  .room-foot { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-top: 10px; min-height: 22px; }
+  .fresh { display: inline-flex; align-items: center; gap: 6px; font-size: 12px; color: var(--text-3); }
+  .fresh::before { content: ''; width: 7px; height: 7px; border-radius: 50%; background: var(--text-3); }
+  .fresh.now { color: var(--ok); }
+  .fresh.now::before { background: var(--ok); box-shadow: 0 0 0 3px rgba(92,201,160,.18); }
+
+  /* Live counts: loading / none (not reported) / ok (0 is a real value) / error + retry */
+  .stats { margin-top: 10px; }
+  .stats4 { display: grid; grid-template-columns: repeat(4, 1fr); gap: 6px; }
+  .stat { background: var(--surface-2); border-radius: 10px; padding: 8px 4px; text-align: center; transition: opacity .2s; }
+  .stat b { display: block; height: 26px; font-size: 20px; line-height: 26px; font-weight: 800; font-variant-numeric: tabular-nums; }
+  .stat span { font-size: 12px; color: var(--text-2); }
+  .stat.zero b { color: var(--text-2); }
+  .stat.unset b { color: var(--text-3); font-weight: 600; }
   .stat.flash { animation: flash 1s ease-out; }
   @keyframes flash { from { background: var(--primary); } }
+  .stats[data-state="loading"] .stat b { color: transparent; width: 30px; margin: 0 auto; border-radius: 6px; background: linear-gradient(90deg, var(--surface-3) 0%, #3b3549 50%, var(--surface-3) 100%); background-size: 200% 100%; animation: shimmer 1.2s infinite; }
+  .stats[data-state="error"] .stats4 { opacity: .4; }
+  .stats[data-state="none"] .stats4 { display: none; }
+  .stat-note { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-top: 8px; font-size: 13px; color: var(--text-2); }
+  .stat-note:empty { display: none; }
+  .stats[data-state="none"] .stat-note { margin-top: 0; padding: 12px; border-radius: 10px; background: var(--surface-2); }
+  .stats[data-state="error"] .stat-note { color: #ffb3b3; }
+  .stat-note .btn { min-height: 40px; flex-shrink: 0; }
+
   .room-layout { position: relative; flex: 1; min-height: 0; display: flex; flex-direction: column; }
-  .tool-rail { position: absolute; right: 0; top: 8px; z-index: 5; display: flex; flex-direction: column; gap: 6px; }
-  .tool-rail .btn { padding: 8px 10px; font-size: 12px; background: rgba(36,33,45,.92); backdrop-filter: blur(6px); box-shadow: 0 4px 14px rgba(0,0,0,.35); }
+  .view-title.clamp2, .clamp2 { word-break: keep-all; overflow-wrap: anywhere; display: -webkit-box; -webkit-line-clamp: 2; line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; line-height: 1.3; }
+  .tool-bar { display: grid; grid-template-columns: 1.5fr 1fr 1fr 1fr; gap: 6px; margin-top: 10px; }
+  .tool-bar .btn { min-height: 46px; padding: 6px 4px; font-size: 13px; word-break: keep-all; }
+  .tool-bar .btn.primary { font-size: 14px; }
+  .tool-bar .btn .icon { width: 18px; height: 18px; }
+
+  /* Search: clear button, sticky on lists, no-results reset */
+  .search .clear { width: 36px; height: 36px; margin-right: -8px; }
+  .search input::-webkit-search-cancel-button { -webkit-appearance: none; appearance: none; }
+  .search input { min-height: 44px; }
+  .sticky-search { position: sticky; top: 0; z-index: 4; background: var(--bg); margin: -8px -16px; padding: 8px 16px; display: flex; flex-direction: column; gap: 10px; }
+  .empty-reset { display: flex; flex-direction: column; align-items: center; gap: 12px; text-align: center; padding: 32px 16px; color: var(--text-2); font-size: 14px; word-break: keep-all; }
+  .empty-reset .btn { min-height: 44px; padding-left: 20px; padding-right: 20px; }
+  .staff-card { display: flex; align-items: center; gap: 12px; }
+  .staff-card .btn { min-height: 44px; flex-shrink: 0; }
+  .staff-name { word-break: keep-all; overflow-wrap: anywhere; }
+
+  /* Home */
+  .home-hero { display: flex; flex-direction: column; align-items: stretch; width: 100%; text-align: left; border-radius: 18px; padding: 18px; background: linear-gradient(145deg, #9a78e6 0%, var(--primary) 52%, #5b3aa6 100%); color: #fff; box-shadow: 0 10px 30px rgba(130,94,208,.35); }
+  .home-hero .kicker { display: inline-flex; align-items: center; gap: 6px; font-size: 12px; font-weight: 700; opacity: .9; }
+  .home-hero .hero-title { font-size: 28px; font-weight: 900; letter-spacing: -.5px; margin-top: 4px; }
+  .home-hero .hero-text { font-size: 14px; line-height: 1.5; opacity: .92; margin-top: 2px; word-break: keep-all; }
+  .home-hero .summary { margin-top: 12px; font-size: 13px; font-weight: 700; min-height: 20px; }
+  .home-hero .cta { margin-top: 12px; display: flex; align-items: center; justify-content: center; gap: 4px; min-height: 50px; border-radius: 12px; background: #fff; color: #3b2470; font-weight: 800; font-size: 16px; }
+  .home-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+  .home-tile { display: flex; flex-direction: column; align-items: flex-start; gap: 4px; padding: 14px; min-height: 88px; text-align: left; border-radius: var(--radius); background: var(--surface); border: 1px solid var(--line); }
+  .home-tile .icon { color: var(--primary-text); margin-bottom: 2px; }
+  .home-tile b { font-size: 15px; }
+  .home-tile span:last-child { font-size: 12px; color: var(--text-3); word-break: keep-all; }
+  /* Coming back to a list: no entrance animation, so it reads as the same place. */
+  .view.returning, .view.returning .list > * { animation: none; }
+  /* Keyboard open on a phone: give the space to the results, not the tab bar. */
+  @media (max-width: 899px) {
+    body.typing #shell { grid-template-rows: calc(var(--top-h) + env(safe-area-inset-top)) minmax(0, 1fr) 0; }
+    body.typing .tabs { display: none; }
+  }
   .notice-bar { padding: 10px 12px; border-radius: var(--radius-sm); background: var(--surface-2); font-size: 13px; color: var(--text-2); display: flex; align-items: center; justify-content: space-between; gap: 10px; }
   .conn { font-size: 11px; display: inline-flex; align-items: center; gap: 5px; color: var(--text-3); }
 
   /* ── Chat ────────────────────────────────────────────── */
   .chat { flex: 1; min-height: 0; display: flex; flex-direction: column; }
-  .msgs { flex: 1; overflow-y: auto; padding: 8px 96px 12px 0; display: flex; flex-direction: column; gap: 8px; }
-  .chat.no-rail .msgs { padding-right: 0; }
+  .msgs { flex: 1; overflow-y: auto; padding: 8px 0 12px; display: flex; flex-direction: column; gap: 8px; }
   .msg { max-width: 78%; display: flex; flex-direction: column; gap: 3px; align-self: flex-start; }
   .msg.mine { align-self: flex-end; align-items: flex-end; }
   .msg .who { font-size: 12px; color: var(--text-2); font-weight: 600; }
@@ -301,7 +358,7 @@
   .edit-row { display: grid; grid-template-columns: 1fr 1fr auto; gap: 6px; margin-bottom: 6px; }
   .num-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 6px; }
   .num-grid input { text-align: center; }
-  @media (max-width: 360px) { .view { padding-left: 12px; padding-right: 12px; } .msgs { padding-right: 84px; } }
+  @media (max-width: 360px) { .view { padding-left: 12px; padding-right: 12px; } .sticky-search { margin: -8px -12px; padding: 8px 12px; } }
   @media (prefers-reduced-motion: reduce) {
     *, *::before, *::after { animation-duration: .01ms !important; animation-delay: 0s !important; animation-iteration-count: 1 !important; transition-duration: .01ms !important; scroll-behavior: auto !important; }
     :is(.btn, .icon-btn, .chip, .tab, .account, .card.click, .menu-row, .cat, .fab, .tab-item):active:not(:disabled) { transform: none; }
@@ -387,6 +444,40 @@ const LANG = (() => {
 })();
 const LOCALE = LANG === 'en' ? 'en-US' : 'ko-KR';
 const EN = {
+ "가게방 {n}곳": "{n} store rooms",
+ "홈": "Home",
+ "초이스톡": "ChoiceTalk",
+ "가게별 초중·엔트리·대기·빈방을 실시간으로 확인해요.": "See each store's choice, entry, waiting and vacant counts live.",
+ "가게 이름으로 찾기": "Search by store name",
+ "검색어 지우기": "Clear search",
+ "아직 열린 방이 없어요.": "No open rooms yet.",
+ "‘{q}’에 맞는 방이 없어요.": "No rooms match ‘{q}’.",
+ "검색·필터 초기화": "Reset search and filters",
+ "아직 등록된 현황이 없어요.": "No counts reported yet.",
+ "미등록": "not reported",
+ "업데이트 실패 · 마지막으로 받은 숫자예요.": "Update failed · showing the last numbers received.",
+ "현황을 불러오지 못했어요.": "Couldn't load the counts.",
+ "{t} 업데이트": "Updated {t}",
+ "가게방 현황을 불러오는 중…": "Loading store counts…",
+ "가게방 {n}곳 · {m}곳이 15분 안에 업데이트": "{n} store rooms · {m} updated in the last 15 min",
+ "아직 열린 가게방이 없어요.": "No store rooms open yet.",
+ "현황 요약을 불러오지 못했어요.": "Couldn't load the summary.",
+ "초이스톡은 그대로 열 수 있어요.": "You can still open ChoiceTalk.",
+ "초이스톡 열기": "Open ChoiceTalk",
+ "가게별 초중·엔트리·대기·빈방을 실시간으로 보고, 가게방에서 담당을 찾아보세요.": "See live counts for each store, then find staff in the store room.",
+ "{name}님, 반가워요": "Hi, {name}",
+ "바로가기": "Shortcuts",
+ "주제별 가벼운 수다": "Casual topic chats",
+ "게시판 · 정보 · 질문": "Boards · tips · questions",
+ "헤어 · 네일 · 생활": "Hair · nails · essentials",
+ "내 대화": "My chats",
+ "수락된 1:1 대화": "Accepted 1:1 chats",
+ "이름이나 직함으로 찾기": "Search by name or title",
+ "담당 검색": "Search staff",
+ "담당 {n}명": "{n} staff",
+ "‘{q}’에 맞는 담당이 없어요.": "No staff match ‘{q}’.",
+ "조건에 맞는 담당이 없어요.": "No staff match.",
+ "검색 초기화": "Reset search",
  "방금": "just now",
  "{n}분 전": "{n} min ago",
  "{n}시간 전": "{n}h ago",
@@ -818,6 +909,9 @@ const ICONS = {
   shield: '<path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>',
   logout: '<path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4M16 17l5-5-5-5M21 12H9"/>',
   x: '<path d="M18 6L6 18M6 6l12 12"/>',
+  home: '<path d="M3 11l9-8 9 8"/><path d="M5 9.5V20h5v-6h4v6h5V9.5"/>',
+  chevron: '<path d="M9 18l6-6-6-6"/>',
+  staff: '<circle cx="10" cy="8" r="4"/><path d="M3 21v-1a6 6 0 0 1 9.5-4.9"/><circle cx="17.5" cy="17.5" r="2.8"/><path d="M21.5 21.5l-2-2"/>',
 };
 /** ICONS are trusted constants, so innerHTML is safe here. */
 function icon(name, cls = '') {
@@ -882,8 +976,8 @@ const S = {
   token: null,
   user: null,
   epoch: 0,          // bumps on logout/account change; late responses from older epochs are dropped
-  tab: 'live',
-  stack: [],         // [{ render, cleanup }]
+  tab: 'home',
+  stack: [],        // [{ render, cleanup }]
   counts: null,
   mediaUrls: new Map(),
 };
@@ -1062,6 +1156,7 @@ function chipGroup(options, current, onPick) {
   const draw = val => wrap.replaceChildren(...options.map(([v, label]) =>
     h('button', { class: 'chip', 'aria-pressed': String(v === val), onclick: () => { draw(v); onPick(v); } }, label)));
   draw(current);
+  wrap.set = draw; // select a value without firing onPick (used by "reset")
   return wrap;
 }
 function switchBtn(on, onChange, label) {
@@ -1108,7 +1203,10 @@ function pagedList({ fetchPage, renderItem, emptyText }) {
       if (my !== token) return;
       if (reset) listEl.replaceChildren();
       page.items.forEach(it => listEl.append(renderItem(it)));
-      if (reset && !page.items.length) listEl.append(empty(typeof emptyText === 'function' ? emptyText() : emptyText));
+      if (reset && !page.items.length) {
+        const e = typeof emptyText === 'function' ? emptyText() : emptyText;
+        listEl.append(e instanceof Node ? e : empty(e));
+      }
       cursor = page.nextCursor;
       moreBtn.classList.toggle('hidden', !cursor);
     } catch (e) {
@@ -1125,7 +1223,8 @@ function pagedList({ fetchPage, renderItem, emptyText }) {
    Navigation (5 tabs, each with a view stack)
    ════════════════════════════════════════════════════════════════════ */
 const TABS = [
-  ['live', t('실시간현황'), t('현황'), 'live', () => viewRooms('live')],
+  ['home', t('홈'), t('홈'), 'home', viewHome],
+  ['live', t('초이스톡'), t('초이스톡'), 'live', () => viewRooms('live')],
   ['daily', t('데일리톡'), t('데일리톡'), 'chat', () => viewRooms('daily')],
   ['lounge', t('라운지'), t('라운지'), 'board', viewLounge],
   ['places', t('플레이스'), t('플레이스'), 'pin', viewPlaces],
@@ -1163,6 +1262,7 @@ function switchTab(id) {
 /** Push a detail view on the current tab's stack. */
 function push(view) {
   const prev = S.stack[S.stack.length - 1];
+  if (prev) prev.scrollTop = $('#main').scrollTop; // so back() lands on the same list position
   prev?.pause?.();
   S.stack.push(view);
   mount(view);
@@ -1171,7 +1271,9 @@ function back() {
   if (S.stack.length <= 1) return;
   S.stack.pop().cleanup?.();
   const top = S.stack[S.stack.length - 1];
+  top.el.classList.add('returning');
   mount(top);
+  $('#main').scrollTop = top.scrollTop || 0;
   top.resume?.();
 }
 const backBtn = () => h('button', { class: 'icon-btn back', 'aria-label': t('뒤로'), onclick: back }, icon('back'));
@@ -1209,7 +1311,7 @@ async function uploadImage(file) {
 /* ════════════════════════════════════════════════════════════════════
    Chat component (rooms + DM): pending/sending/failed/retry, dedupe, backfill
    ════════════════════════════════════════════════════════════════════ */
-function createChat({ showNick, send, withRail, meId = S.user.id, emptyText = t('첫 메시지를 남겨보세요.') }) {
+function createChat({ showNick, send, meId = S.user.id, emptyText = t('첫 메시지를 남겨보세요.') }) {
   const list = h('div', { class: 'msgs', 'aria-live': 'polite' });
   const byId = new Map();          // message id → element
   const pending = new Map();       // localId → { requestId, body, mediaId, el, state }
@@ -1226,7 +1328,7 @@ function createChat({ showNick, send, withRail, meId = S.user.id, emptyText = t(
   const sendBtn = h('button', { class: 'btn primary', style: 'height:42px', 'aria-label': t('전송'), onclick: submitText }, icon('send'));
   const composer = h('div', { class: 'composer' }, photoBtn, input, sendBtn);
   const blockedBar = h('div', { class: 'chat-blocked hidden' });
-  const el = h('div', { class: 'chat' + (withRail ? '' : ' no-rail') }, list, composer, blockedBar);
+  const el = h('div', { class: 'chat' }, list, composer, blockedBar);
 
   const nearBottom = () => list.scrollHeight - list.scrollTop - list.clientHeight < 120;
   const scrollDown = () => requestAnimationFrame(() => { list.scrollTop = list.scrollHeight; });
@@ -1354,99 +1456,333 @@ function createChat({ showNick, send, withRail, meId = S.user.id, emptyText = t(
 }
 
 /* ════════════════════════════════════════════════════════════════════
+   홈 — the way into 초이스톡
+   ════════════════════════════════════════════════════════════════════ */
+function viewHome() {
+  const summary = h('span', { class: 'summary', 'aria-live': 'polite' });
+  const retryRow = h('div');
+  async function loadSummary() {
+    summary.textContent = t('가게방 현황을 불러오는 중…');
+    retryRow.replaceChildren();
+    try {
+      const r = await api('GET', '/rooms' + qs({ kind: 'store', limit: 50 }));
+      const fresh = r.items.filter(x => x.liveStatus && Date.now() - Date.parse(x.liveStatus.updatedAt) < 15 * 60000).length;
+      const n = r.items.length + (r.hasMore ? '+' : '');
+      summary.textContent = !r.items.length ? t('아직 열린 가게방이 없어요.')
+        : fresh ? t('가게방 {n}곳 · {m}곳이 15분 안에 업데이트', { n, m: fresh })
+        : t('가게방 {n}곳', { n });
+    } catch (e) {
+      if (e instanceof Stale) return;
+      summary.textContent = t('현황 요약을 불러오지 못했어요.');
+      retryRow.replaceChildren(h('div', { class: 'notice-bar' }, h('span', null, t('초이스톡은 그대로 열 수 있어요.')), h('button', { class: 'btn sm', onclick: loadSummary }, t('다시 시도'))));
+    }
+  }
+  const hero = h('button', { class: 'home-hero', 'aria-label': t('초이스톡 열기'), onclick: () => switchTab('live') },
+    h('span', { class: 'kicker' }, h('span', { class: 'led ok' }), t('실시간')),
+    h('span', { class: 'hero-title' }, t('초이스톡')),
+    h('span', { class: 'hero-text' }, t('가게별 초중·엔트리·대기·빈방을 실시간으로 보고, 가게방에서 담당을 찾아보세요.')),
+    summary,
+    h('span', { class: 'cta' }, t('초이스톡 열기'), icon('chevron')));
+  const tile = (ic, title, sub, go) => h('button', { class: 'home-tile', onclick: go }, icon(ic), h('b', null, title), h('span', null, sub));
+  const el = h('div', { class: 'view' },
+    h('div', null, h('div', { class: 'small muted' }, t('{name}님, 반가워요', { name: S.user.nickname })), h('h1', { class: 'view-title' }, t('하이언니'))),
+    hero,
+    retryRow,
+    h('div', { class: 'section-label' }, t('바로가기')),
+    h('div', { class: 'home-grid' },
+      tile('chat', t('데일리톡'), t('주제별 가벼운 수다'), () => switchTab('daily')),
+      tile('board', t('라운지'), t('게시판 · 정보 · 질문'), () => switchTab('lounge')),
+      tile('pin', t('플레이스'), t('헤어 · 네일 · 생활'), () => switchTab('places')),
+      tile('inbox', t('내 대화'), t('수락된 1:1 대화'), () => { switchTab('my'); push(viewConversations()); })));
+  loadSummary();
+  return { el, resume: loadSummary };
+}
+
+/* ════════════════════════════════════════════════════════════════════
+   담당 찾기 — staff search for one store room (F08)
+   Back returns to the same room; back again to the same list position.
+   ════════════════════════════════════════════════════════════════════ */
+const STAFF_RANK = ['실장', '부실장', '부장', '팀장', '담당'];
+function viewStaff(room) {
+  const f = { q: '', title: '' };
+  let staff = null;
+  const search = searchBox({ placeholder: t('이름이나 직함으로 찾기'), label: t('담당 검색'), onChange: q => { f.q = q; draw(); } });
+  const titleWrap = h('div');
+  let titleChips = null;
+  const countEl = h('div', { class: 'section-label', 'aria-live': 'polite' });
+  const listEl = h('div', { class: 'list' }, skeletons(3));
+
+  function reset() { f.q = ''; f.title = ''; search.set(''); titleChips?.set(''); draw(); }
+  function lastSeen(s) {
+    if (!s.lastSeen.visible) return t('최근 접속 비공개');
+    return s.lastSeen.at ? t('최근 접속 {t}', { t: ago(s.lastSeen.at) }) : t('접속 기록 없음');
+  }
+  function staffCard(s) {
+    const initial = s.nickname.split(' ').pop().slice(0, 1);
+    return h('div', { class: 'card staff-card' },
+      h('div', { class: 'avatar sm' }, initial),
+      h('div', { class: 'grow', style: 'min-width:0' },
+        h('div', { class: 'row', style: 'gap:6px;flex-wrap:wrap' }, h('b', { class: 'staff-name' }, s.nickname), h('span', { class: 'badge primary' }, s.title)),
+        h('div', { class: 'small faint', style: 'margin-top:2px' }, lastSeen(s))),
+      s.userId !== S.user.id && h('button', { class: 'btn', onclick: () => dmRequestSheet({ toUserId: s.userId }, s.nickname) }, t('1:1 신청')));
+  }
+  function draw() {
+    if (!staff) return;
+    const q = f.q.toLowerCase();
+    const hits = staff.filter(s => (!f.title || s.title === f.title) && (!q || s.nickname.toLowerCase().includes(q) || s.title.toLowerCase().includes(q)));
+    countEl.textContent = staff.length ? t('담당 {n}명', { n: hits.length }) : '';
+    if (!staff.length) return listEl.replaceChildren(empty(t('등록된 담당자가 없어요.')));
+    if (!hits.length) {
+      return listEl.replaceChildren(resetEmpty(f.q ? t('‘{q}’에 맞는 담당이 없어요.', { q: f.q }) : t('조건에 맞는 담당이 없어요.'), t('검색 초기화'), reset));
+    }
+    listEl.replaceChildren(...hits.map(staffCard));
+  }
+  async function load() {
+    listEl.replaceChildren(skeletons(3));
+    try {
+      const r = await api('GET', `/rooms/${room.id}/staff`);
+      const rank = title => STAFF_RANK.indexOf(title) + 1 || 99;
+      staff = [...r.items].sort((a, b) => rank(a.title) - rank(b.title) || a.nickname.localeCompare(b.nickname, 'ko'));
+      const titles = [...new Set(staff.map(s => s.title))];
+      titleChips = titles.length > 1 ? chipGroup([['', t('전체')], ...titles.map(x => [x, x])], f.title, v => { f.title = v; draw(); }) : null;
+      titleWrap.replaceChildren(titleChips || '');
+      draw();
+    } catch (e) {
+      if (e instanceof Stale) return;
+      countEl.textContent = '';
+      listEl.replaceChildren(errorBox(e, load));
+    }
+  }
+  const el = h('div', { class: 'view' },
+    h('div', { class: 'view-head' }, backBtn(),
+      h('div', { class: 'grow', style: 'min-width:0' }, h('h1', { class: 'view-title' }, t('담당 찾기')), h('div', { class: 'small muted clamp2' }, room.title))),
+    h('div', { class: 'sticky-search' }, search.el, titleWrap),
+    countEl,
+    listEl);
+  load();
+  return { el };
+}
+
+// Phone keyboard open → hide the tab bar so the results keep the space (see body.typing in CSS).
+const isTextField = n => n?.matches?.('input:not([type=checkbox]):not([type=radio]):not([type=file]), textarea');
+document.addEventListener('focusin', e => { if (isTextField(e.target)) document.body.classList.add('typing'); });
+document.addEventListener('focusout', () => setTimeout(() => { if (!isTextField(document.activeElement)) document.body.classList.remove('typing'); }, 0));
+
+/* ════════════════════════════════════════════════════════════════════
    실시간현황 / 데일리톡 — rooms (F03, F07, F08)
    ════════════════════════════════════════════════════════════════════ */
+/**
+ * Live counts with four distinct states:
+ *  loading — shimmer, no numbers yet
+ *  none    — the store has not reported anything ("아직 등록된 현황이 없어요")
+ *  ok      — numbers; a confirmed 0 shows as "0", a single unreported field as "—"
+ *  error   — last values dimmed, with a retry button
+ * Pass `undefined` to start in loading, `null` for "not reported".
+ */
 function statsBlock(st) {
   const cells = [['choice', t('초중')], ['entry', t('엔트리')], ['waiting', t('대기')], ['vacancy', t('빈방')]];
-  const el = h('div', { class: 'stats4' }, cells.map(([k, label]) => h('div', { class: 'stat', 'data-k': k }, h('b', null, numOrDash(st?.[k])), h('span', null, label))));
-  return {
+  const grid = h('div', { class: 'stats4' }, cells.map(([k, label]) => h('div', { class: 'stat', 'data-k': k }, h('b', null, ''), h('span', null, label))));
+  const note = h('div', { class: 'stat-note', role: 'status' });
+  const el = h('div', { class: 'stats' }, grid, note);
+  let current = null;
+  const setState = s => { el.dataset.state = s; el.setAttribute('aria-busy', String(s === 'loading')); };
+  function paint(next, flash) {
+    for (const [k, label] of cells) {
+      const cell = grid.querySelector(`[data-k="${k}"]`);
+      const b = cell.firstChild;
+      const n = next?.[k];
+      const v = numOrDash(n);
+      cell.classList.toggle('zero', n === 0);
+      cell.classList.toggle('unset', n == null);
+      cell.setAttribute('aria-label', `${label} ${n == null ? t('미등록') : n}`);
+      if (b.textContent !== v) {
+        b.textContent = v;
+        if (flash) { cell.classList.remove('flash'); void cell.offsetWidth; cell.classList.add('flash'); }
+      }
+    }
+  }
+  const block = {
     el,
     update(next, flash = true) {
-      for (const [k] of cells) {
-        const cell = el.querySelector(`[data-k="${k}"]`);
-        const b = cell.querySelector('b');
-        const v = numOrDash(next?.[k]);
-        if (b.textContent !== v) { b.textContent = v; if (flash) { cell.classList.remove('flash'); void cell.offsetWidth; cell.classList.add('flash'); } }
-      }
+      const wasOk = el.dataset.state === 'ok';
+      current = next || null;
+      if (!next) { setState('none'); note.replaceChildren(t('아직 등록된 현황이 없어요.')); paint(null, false); return; }
+      setState('ok');
+      note.replaceChildren();
+      paint(next, flash && wasOk);
     },
+    loading() { setState('loading'); note.replaceChildren(); },
+    fail(retry) {
+      setState('error');
+      note.replaceChildren(
+        h('span', null, current ? t('업데이트 실패 · 마지막으로 받은 숫자예요.') : t('현황을 불러오지 못했어요.')),
+        retry && h('button', { class: 'btn sm', onclick: e => { e.stopPropagation(); retry(); } }, t('다시 시도')));
+    },
+    get failed() { return el.dataset.state === 'error'; },
   };
+  if (st === undefined) block.loading(); else block.update(st, false);
+  return block;
 }
+/** "3분 전 업데이트", green while fresh (under 15 minutes). */
+function freshTag(st) {
+  if (!st) return h('span', { class: 'fresh' }, t('현황 미등록'));
+  const fresh = Date.now() - Date.parse(st.updatedAt) < 15 * 60000;
+  return h('span', { class: 'fresh' + (fresh ? ' now' : '') }, t('{t} 업데이트', { t: ago(st.updatedAt) }));
+}
+/** Search box with a clear button. Enter runs the search and closes the phone keyboard. */
+function searchBox({ placeholder, label, onChange, onSubmit }) {
+  const input = h('input', { type: 'search', enterkeyhint: 'search', autocomplete: 'off', placeholder, 'aria-label': label });
+  const clear = h('button', { class: 'icon-btn clear hidden', type: 'button', 'aria-label': t('검색어 지우기'), onclick: () => { set(''); onChange(''); input.focus(); } }, icon('x'));
+  const set = v => { input.value = v; clear.classList.toggle('hidden', !v); };
+  input.addEventListener('input', () => { clear.classList.toggle('hidden', !input.value); onChange(input.value.trim()); });
+  input.addEventListener('keydown', e => {
+    if (e.key === 'Enter' && !e.isComposing) { e.preventDefault(); onSubmit?.(input.value.trim()); input.blur(); }
+  });
+  return { el: h('label', { class: 'search' }, icon('search'), input, clear), input, set };
+}
+/** Empty result with a way out: shown when a search or filter finds nothing. */
+const resetEmpty = (text, label, onReset) =>
+  h('div', { class: 'empty-reset' }, h('p', null, text), h('button', { class: 'btn primary', onclick: onReset }, label));
 const stateBadge = s => { const [t, c] = MEMBER_STATE[s] || MEMBER_STATE.none; return h('span', { class: 'badge ' + c }, t); };
 
 function viewRooms(mode) {
   const isDaily = mode === 'daily';
-  const f = { kind: isDaily ? 'daily' : 'store,general', region: '', q: '', saved: false };
-  const cards = new Map(); // roomId → { stats, updated }
+  const DEFAULTS = { kind: isDaily ? 'daily' : 'store,general', region: '', q: '', saved: false };
+  const f = { ...DEFAULTS };
+  const cards = new Map(); // roomId → { stats, fresh }
   const badge = connBadge();
-  const search = h('input', { type: 'search', placeholder: isDaily ? t('주제 검색') : t('가게·방 이름 검색'), 'aria-label': t('검색') });
   let searchTimer;
-  search.addEventListener('input', () => { clearTimeout(searchTimer); searchTimer = setTimeout(() => { f.q = search.value.trim(); list.reload(); }, 300); });
+  const search = searchBox({
+    placeholder: isDaily ? t('주제 검색') : t('가게 이름으로 찾기'),
+    label: t('검색'),
+    onChange: q => { clearTimeout(searchTimer); searchTimer = setTimeout(() => { f.q = q; reloadList(); }, 300); },
+    onSubmit: q => { clearTimeout(searchTimer); if (q !== f.q) { f.q = q; reloadList(); } },
+  });
 
   function card(r) {
-    const stats = r.kind === 'store' && statsBlock(r.liveStatus); // counts only mean something for store rooms
-    const updated = h('span', { class: 'faint small' }, r.kind !== 'store' ? '' : r.liveStatus ? t('현황 {t}', { t: ago(r.liveStatus.updatedAt) }) : t('현황 미등록'));
-    cards.set(r.id, { stats, updated });
-    return h('div', { class: 'card click room-card', role: 'button', tabindex: 0, onclick: () => push(viewRoom(r.id)), onkeydown: e => e.key === 'Enter' && push(viewRoom(r.id)) },
-      h('div', { class: 'between' },
-        h('div', { class: 'grow' },
-          h('div', { class: 'row' }, h('span', { class: 'badge primary' }, r.anonymous ? t('익명 오픈톡') : ROOM_KIND[r.kind]), r.status === 'closed' && h('span', { class: 'badge' }, t('종료')), stateBadge(r.myState)),
-          h('div', { class: 'title ellipsis', style: 'margin-top:6px' }, r.title),
-          h('div', { class: 'small muted' }, [r.region && REGIONS[r.region], t('참여 {n}명', { n: `${r.activeCount}${r.capacity ? '/' + r.capacity : ''}` }), r.joinPolicy === 'approval' ? t('승인제') : t('바로 참여')].filter(Boolean).join(' · '))),
+    const isStore = r.kind === 'store'; // counts only mean something for store rooms
+    const stats = isStore ? statsBlock(r.liveStatus) : null;
+    const fresh = h('span', null, isStore ? freshTag(r.liveStatus) : '');
+    cards.set(r.id, { stats, fresh });
+    const open = () => push(viewRoom(r.id));
+    const meta = [r.region && REGIONS[r.region], t('참여 {n}명', { n: `${r.activeCount}${r.capacity ? '/' + r.capacity : ''}` }), r.joinPolicy === 'approval' ? t('승인제') : t('바로 참여')];
+    return h('div', { class: 'card click room-card', role: 'button', tabindex: 0, onclick: open, onkeydown: e => e.target === e.currentTarget && e.key === 'Enter' && open() },
+      h('div', { class: 'room-head' },
+        h('div', { class: 'grow', style: 'min-width:0' },
+          h('div', { class: 'venue-name' }, r.title),
+          h('div', { class: 'room-meta' }, meta.filter(Boolean).join(' · '))),
         heartBtn(r.saved, saveToggle('room', r.id))),
-      stats && stats.el,
-      h('div', { style: 'margin-top:8px' }, updated));
+      stats?.el,
+      h('div', { class: 'room-foot' }, fresh,
+        h('div', { class: 'row', style: 'gap:4px' },
+          (!isStore || r.anonymous) && h('span', { class: 'badge primary' }, r.anonymous ? t('익명 오픈톡') : ROOM_KIND[r.kind]),
+          r.status === 'closed' && h('span', { class: 'badge' }, t('종료')),
+          r.myState !== 'none' && stateBadge(r.myState))));
+  }
+
+  const kindChips = !isDaily && chipGroup([['store,general', t('전체')], ['store', t('가게방')], ['general', t('일반방')]], f.kind, v => { f.kind = v; reloadList(); });
+  const regionChips = chipGroup(Object.entries(REGIONS), '', v => { f.region = v; reloadList(); });
+  const savedChip = h('button', { class: 'chip', 'aria-pressed': 'false', onclick: () => { f.saved = !f.saved; savedChip.setAttribute('aria-pressed', String(f.saved)); reloadList(); } }, t('♡ 찜'));
+  const filtered = () => f.q || f.region || f.saved || f.kind !== DEFAULTS.kind;
+  function resetFilters() {
+    clearTimeout(searchTimer);
+    Object.assign(f, DEFAULTS);
+    search.set('');
+    kindChips?.set(f.kind);
+    regionChips.set('');
+    savedChip.setAttribute('aria-pressed', 'false');
+    reloadList();
   }
 
   const list = pagedList({
     fetchPage: cursor => api('GET', '/rooms' + qs({ kind: f.kind, region: f.region, q: f.q, saved: f.saved && 'true', cursor, limit: 20 })),
     renderItem: card,
-    emptyText: () => (f.saved ? t('찜한 방이 없어요.') : t('조건에 맞는 방이 없어요.')),
+    emptyText: () => {
+      if (!filtered()) return t('아직 열린 방이 없어요.');
+      const text = f.q ? t('‘{q}’에 맞는 방이 없어요.', { q: f.q }) : f.saved && !f.region ? t('찜한 방이 없어요.') : t('조건에 맞는 방이 없어요.');
+      return resetEmpty(text, t('검색·필터 초기화'), resetFilters);
+    },
   });
+  const reloadList = () => { cards.clear(); list.reload(); };
+
+  /** Re-read the counts for the cards already on screen, without redrawing the list. */
+  async function refreshCounts() {
+    if (isDaily || !cards.size) return;
+    try {
+      const r = await api('GET', '/rooms' + qs({ kind: f.kind, region: f.region, q: f.q, saved: f.saved && 'true', limit: Math.min(50, Math.max(20, cards.size)) }));
+      for (const room of r.items) {
+        const c = cards.get(room.id);
+        if (!c?.stats) continue;
+        c.stats.update(room.liveStatus);
+        c.fresh.replaceChildren(freshTag(room.liveStatus));
+      }
+    } catch (e) { if (!(e instanceof Stale)) failAll(); }
+  }
+  function failAll() { for (const c of cards.values()) c.stats?.fail(retryAll); }
+  function retryAll() {
+    for (const c of cards.values()) c.stats?.loading();
+    live?.close();
+    startLive();
+    refreshCounts();
+  }
 
   // Live status counters for every visible card (F03: numbers on other phones within 1 s).
-  let live;
+  // If the connection stays down for 4 s, the counts are marked as failed with a retry.
+  let live, failTimer = null, liveGen = 0;
   const startLive = () => {
     if (isDaily) return;
+    let wasLive = false;
+    const gen = ++liveGen;
+    clearTimeout(failTimer); failTimer = null;
     live = new Live('status', {
-      onState: s => badge.set(s),
+      onState: s => {
+        badge.set(s);
+        if (gen !== liveGen) return;
+        if (s === 'live') { clearTimeout(failTimer); failTimer = null; }
+        else if ((s === 'connecting' || s === 'reconnecting') && !failTimer) failTimer = setTimeout(failAll, 4000);
+      },
+      onReady: () => {
+        if (wasLive || [...cards.values()].some(c => c.stats?.failed)) refreshCounts();
+        wasLive = true;
+      },
       onEvent: ev => {
         if (ev.type !== 'status') return;
         const c = cards.get(ev.roomId);
-        if (!c) return;
-        c.stats?.update(ev.status);
-        c.updated.textContent = t('현황 {t}', { t: ago(ev.status.updatedAt) });
+        if (!c?.stats) return;
+        c.stats.update(ev.status);
+        c.fresh.replaceChildren(freshTag(ev.status));
       },
     });
   };
+  const stopLive = () => { liveGen++; clearTimeout(failTimer); failTimer = null; live?.close(); live = null; };
   startLive();
 
   const el = h('div', { class: 'view' },
-    h('div', { class: 'between' }, h('h1', { class: 'view-title' }, isDaily ? t('데일리톡') : t('실시간현황')), !isDaily && badge.el),
-    h('p', { class: 'view-sub' }, isDaily ? t('주제별로 모여 가볍게 이야기해요.') : t('초이스톡 · 가게별 초중·엔트리·대기·빈방을 실시간으로 확인해요.')),
-    h('label', { class: 'search' }, icon('search'), search),
-    !isDaily && chipGroup([['store,general', t('전체')], ['store', t('가게방')], ['general', t('일반방')]], f.kind, v => { f.kind = v; list.reload(); }),
-    h('div', { class: 'row' },
-      h('div', { class: 'grow' }, chipGroup(Object.entries(REGIONS), '', v => { f.region = v; list.reload(); })),
-      h('button', { class: 'chip', 'aria-pressed': 'false', onclick: e => { f.saved = !f.saved; e.currentTarget.setAttribute('aria-pressed', String(f.saved)); list.reload(); } }, t('♡ 찜'))),
+    h('div', { class: 'between' }, h('h1', { class: 'view-title' }, isDaily ? t('데일리톡') : t('초이스톡')), !isDaily && badge.el),
+    h('p', { class: 'view-sub' }, isDaily ? t('주제별로 모여 가볍게 이야기해요.') : t('가게별 초중·엔트리·대기·빈방을 실시간으로 확인해요.')),
+    h('div', { class: 'sticky-search' }, search.el),
+    kindChips,
+    h('div', { class: 'row' }, h('div', { class: 'grow' }, regionChips), savedChip),
     list.el);
-  list.reload();
+  reloadList();
   return {
     el,
-    cleanup: () => live?.close(),
-    pause: () => { live?.close(); live = null; },
-    resume: () => { cards.clear(); list.reload(); startLive(); },
+    cleanup: stopLive,
+    pause: stopLive,
+    // Coming back from a room: keep the list (and scroll position) and just refresh the numbers.
+    resume: () => { startLive(); refreshCounts(); },
   };
 }
 
 function viewRoom(roomId) {
   const body = h('div', { class: 'room-layout' }, skeletons(2));
-  const titleEl = h('h1', { class: 'view-title ellipsis grow', style: 'font-size:18px' }, t('불러오는 중…'));
+  const titleEl = h('h1', { class: 'view-title clamp2 grow', style: 'font-size:18px' }, t('불러오는 중…'));
   const actions = h('div', { class: 'row', style: 'gap:2px' });
   const badge = connBadge();
-  const statusWrap = h('div');
+  const statusWrap = h('div', null, statsBlock(undefined).el); // counts show "loading" until the room arrives
   const el = h('div', { class: 'view fill' }, h('div', { class: 'view-head' }, backBtn(), titleEl, actions), statusWrap, body);
-  let live = null, room = null, chat = null, stats = null, pendingTimer = null;
-  const stopTimers = () => { live?.close(); live = null; clearInterval(pendingTimer); pendingTimer = null; };
+  let live = null, room = null, chat = null, stats = null, pendingTimer = null, failTimer = null, liveGen = 0;
+  const stopTimers = () => { liveGen++; live?.close(); live = null; clearInterval(pendingTimer); pendingTimer = null; clearTimeout(failTimer); failTimer = null; };
 
   async function load() {
     stopTimers();
@@ -1463,23 +1799,23 @@ function viewRoom(roomId) {
       room.canManage && h('button', { class: 'btn sm', onclick: () => manageSheet() }, t('관리')),
       room.myState === 'active' && h('button', { class: 'icon-btn', 'aria-label': t('더보기'), onclick: roomMenu }, icon('more')));
     stats = room.kind === 'store' ? statsBlock(room.liveStatus) : null;
-    statusWrap.replaceChildren(
-      h('div', { class: 'row small muted' }, h('span', { class: 'badge primary' }, room.anonymous ? t('익명 오픈톡') : ROOM_KIND[room.kind]), stateBadge(room.myState), room.myAlias && h('span', null, t('내 닉네임: ') + room.myAlias.nickname), room.region && REGIONS[room.region], h('span', { class: 'grow' }), badge.el),
-      stats ? stats.el : '');
-    if (stats) stats.el.style.marginTop = '8px';
-
-    const rail = room.hasStoreTools && h('div', { class: 'tool-rail', role: 'toolbar', 'aria-label': t('가게방 도구') },
+    // Store tools sit under the counts with visible labels; 담당 찾기 is the main action.
+    const tools = room.hasStoreTools && h('div', { class: 'tool-bar', role: 'toolbar', 'aria-label': t('가게방 도구') },
+      h('button', { class: 'btn primary', onclick: () => push(viewStaff(room)) }, icon('staff'), t('담당 찾기')),
       h('button', { class: 'btn', onclick: () => toolsSheet('prices') }, t('가격표')),
       h('button', { class: 'btn', onclick: () => toolsSheet('terms') }, t('용어')),
-      h('button', { class: 'btn', onclick: staffSheet }, t('담당 찾기')),
       h('button', { class: 'btn', onclick: () => toolsSheet('vacancy') }, t('빈방 기록')));
+    statusWrap.replaceChildren(
+      h('div', { class: 'row small muted', style: 'flex-wrap:wrap' }, h('span', { class: 'badge primary' }, room.anonymous ? t('익명 오픈톡') : ROOM_KIND[room.kind]), stateBadge(room.myState), room.myAlias && h('span', null, t('내 닉네임: ') + room.myAlias.nickname), room.region && REGIONS[room.region], h('span', { class: 'grow' }), badge.el),
+      stats ? stats.el : '',
+      tools || '');
 
     if (room.status === 'closed') {
-      body.replaceChildren(rail || '', h('div', { class: 'notice-bar' }, t('종료된 방이에요. 대화 기록은 열람할 수 없어요.')));
+      body.replaceChildren(h('div', { class: 'notice-bar', style: 'margin-top:8px' }, t('종료된 방이에요. 대화 기록은 열람할 수 없어요.')));
       return;
     }
     if (room.myState !== 'active') {
-      body.replaceChildren(rail || '', joinPanel());
+      body.replaceChildren(joinPanel());
       subscribe(false);
       // Pending members are not on the room channel yet, so check for approval periodically.
       if (room.myState === 'pending') {
@@ -1491,12 +1827,11 @@ function viewRoom(roomId) {
     }
     chat = createChat({
       showNick: true,
-      withRail: !!rail,
       meId: room.myAlias ? room.myAlias.id : S.user.id,
       emptyText: room.anonymous ? t('익명 오픈톡이에요. 이 방에서는 자동 닉네임으로 표시돼요.') : undefined,
       send: p => api('POST', `/rooms/${room.id}/messages`, p),
     });
-    body.replaceChildren(rail || '', chat.el);
+    body.replaceChildren(chat.el);
     try {
       const page = await api('GET', `/rooms/${room.id}/messages?limit=50`);
       chat.load(page.items);
@@ -1508,9 +1843,18 @@ function viewRoom(roomId) {
     // Non-members still see live counters via the global status channel.
     const channel = member ? `room:${room.id}` : 'status';
     if (room.kind === 'daily' && !member) return;
+    const gen = ++liveGen;
+    clearTimeout(failTimer); failTimer = null;
     live = new Live(channel, {
-      onState: s => badge.set(s),
+      onState: s => {
+        badge.set(s);
+        if (gen !== liveGen || !stats) return;
+        // No live connection for 4 s: the counts may be out of date, so say so and offer a retry.
+        if (s === 'live') { clearTimeout(failTimer); failTimer = null; }
+        else if ((s === 'connecting' || s === 'reconnecting') && !failTimer) failTimer = setTimeout(() => stats.fail(retryStatus), 4000);
+      },
       onReady: async () => {
+        if (stats?.failed) retryStatus();
         if (!member || !chat) return;
         // Backfill anything missed while (re)connecting; duplicates are dropped by id.
         try { const r = await api('GET', `/rooms/${room.id}/messages?afterSeq=${chat.lastSeq}&limit=200`); r.items.forEach(chat.add); } catch {}
@@ -1525,6 +1869,16 @@ function viewRoom(roomId) {
         }
       },
     });
+  }
+
+  async function retryStatus() {
+    if (!stats) return;
+    stats.loading();
+    try {
+      const r = await api('GET', `/rooms/${roomId}`);
+      stats.update(r.liveStatus, false);
+      if (!live || live.closed) subscribe(room.myState === 'active');
+    } catch (e) { if (!(e instanceof Stale)) stats.fail(retryStatus); }
   }
 
   function joinPanel() {
@@ -1544,7 +1898,7 @@ function viewRoom(roomId) {
     const cancel = s === 'pending' && h('button', { class: 'btn', onclick: async () => {
       try { await api('POST', `/rooms/${room.id}/leave`); load(); } catch (err) { if (!(err instanceof Stale)) toast(errText(err), 'error'); }
     } }, t('신청 취소'));
-    return h('div', { class: 'card stack', style: 'margin-top:8px;margin-right:' + (room.hasStoreTools ? '96px' : '0') },
+    return h('div', { class: 'card stack', style: 'margin-top:10px' },
       h('p', { class: 'muted' }, text), h('div', { class: 'row' }, btn, cancel));
   }
 
@@ -1602,19 +1956,6 @@ function viewRoom(roomId) {
         tools.vacancy.history.length > 1 && h('div', { style: 'margin-top:10px' }, h('div', { class: 'section-label' }, t('이전 기록')), tools.vacancy.history.slice(1).map(v => h('div', { class: 'kv small' }, h('span', { class: 'muted' }, `${ago(v.recordedAt)}${v.note ? ' · ' + v.note : ''}`), h('b', null, v.vacancy)))),
         rec);
     }
-  }
-
-  async function staffSheet() {
-    const content = h('div', null, skeletons(2));
-    openSheet(t('담당 찾기'), content);
-    try {
-      const r = await api('GET', `/rooms/${room.id}/staff`);
-      content.replaceChildren(r.items.length ? h('div', { class: 'list' }, r.items.map(s => h('div', { class: 'card row' },
-        h('div', { class: 'avatar sm' }, s.nickname.slice(0, 1)),
-        h('div', { class: 'grow' }, h('b', null, s.nickname), ' ', h('span', { class: 'badge primary' }, s.title),
-          h('div', { class: 'small faint' }, s.lastSeen.visible ? (s.lastSeen.at ? t('최근 접속 {t}', { t: ago(s.lastSeen.at) }) : t('접속 기록 없음')) : t('최근 접속 비공개'))),
-        s.userId !== S.user.id && h('button', { class: 'btn sm', onclick: () => dmRequestSheet({ toUserId: s.userId }, s.nickname) }, t('1:1 신청'))))) : empty(t('등록된 담당자가 없어요.')));
-    } catch (e) { if (!(e instanceof Stale)) content.replaceChildren(errorBox(e)); }
   }
 
   async function manageSheet() {
@@ -2239,7 +2580,7 @@ async function initNative() {
     if ($('#sheet-root .sheet-back:not(.closing)')) return closeSheet();
     if (!$('#shell').classList.contains('hidden')) {
       if (S.stack.length > 1) return back();
-      if (S.tab !== 'live') return switchTab('live');
+      if (S.tab !== 'home') return switchTab('home');
     } else if (!$('#login').classList.contains('hidden')) return show('intro');
     NATIVE.App.minimizeApp();
   });
@@ -2281,7 +2622,7 @@ function startSession(token, user) {
   S.token = token; S.user = user;
   try { sessionStore?.setItem('hiunni.session', JSON.stringify({ token, user })); } catch {}
   show('shell');
-  switchTab('live');
+  switchTab('home');
   refreshCounts();
   clearInterval(countsTimer);
   countsTimer = setInterval(refreshCounts, 20000);

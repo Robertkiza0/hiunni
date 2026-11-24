@@ -16,6 +16,7 @@ Stack: Workers + [Hono](https://hono.dev) · D1 (SQLite) · R2 (private media) �
 npm install
 cp .dev.vars.example .dev.vars          # set MEDIA_SIGNING_KEY
 npm run db:reset:local                  # wipe local D1, apply migrations, load synthetic seed
+npx wrangler d1 execute hiunni-db --local --file=seed/demo_journey.sql   # optional: more stores/staff for the 초이스톡 walkthrough
 npm run dev                             # API + web prototype on http://localhost:8787
 npm test                                # 44 tests
 npm run typecheck
