@@ -17,15 +17,23 @@
 <style>
   :root {
     --bg: #131217;
-    --surface: #1b1921;
-    --surface-2: #24212d;
+    --surface: #1c1a21;
+    --surface-2: #242229;
     --surface-3: #2d2938;
     --line: #322e3d;
     --primary: #825ED0;
     --primary-hover: #8f6edb;
     --primary-text: #b9a2f0;   /* primary for small text on dark (contrast) */
     --primary-soft: rgba(130, 94, 208, .16);
-    --accent: #e87fa0;
+    --accent: #E61A86;
+  /* HIUNNI's own direction (client design guide 2026-11-19 + its web v2 screens):
+     purple gradient actions, plum gradient cards, small uppercase eyebrows, the "h" tile mark. */
+  --fill: linear-gradient(135deg, #9a78e6 0%, #825ED0 55%, #6c47bf 100%);
+  --pink: #f07ab6;            /* accent tint for small marks on dark */
+  --pink-soft: rgba(230, 26, 134, .12);
+  --plum: linear-gradient(160deg, #2c2340 0%, #221d2c 60%, #1d1a23 100%);
+  --plum-line: #3b3150;
+  --eyebrow: #b9a2f0;
     --text: #f3f1f8;
     --text-2: #a7a2b5;
     --text-3: #77728a;
@@ -71,8 +79,8 @@
   :is(.btn, .icon-btn, .chip, .tab, .account, .card.click, .menu-row, .cat, .fab, .tab-item):active:not(:disabled) { transform: scale(.97); }
   .btn { display: inline-flex; align-items: center; justify-content: center; gap: 6px; padding: 10px 16px; border-radius: var(--radius-sm); font-weight: 700; font-size: 14px; background: var(--surface-3); border: 1px solid var(--line); }
   .btn:hover:not(:disabled) { background: var(--line); }
-  .btn.primary { background: var(--primary); border-color: var(--primary); color: #fff; }
-  .btn.primary:hover:not(:disabled) { background: var(--primary-hover); }
+  .btn.primary { background: var(--fill); border-color: transparent; color: #fff; box-shadow: 0 6px 18px rgba(130,94,208,.28); }
+  .btn.primary:hover:not(:disabled) { filter: brightness(1.08); }
   .btn.danger { color: var(--danger); }
   .btn.block { width: 100%; padding: 14px; font-size: 15px; }
   .btn.sm { padding: 6px 10px; font-size: 12px; border-radius: 8px; }
@@ -81,7 +89,7 @@
   .chips { display: flex; gap: 6px; overflow-x: auto; padding: 2px 0; scrollbar-width: none; }
   .chips::-webkit-scrollbar { display: none; }
   .chip { flex-shrink: 0; padding: 6px 12px; border-radius: 999px; font-size: 13px; font-weight: 600; background: var(--surface-2); color: var(--text-2); border: 1px solid var(--line); }
-  .chip[aria-pressed="true"] { background: var(--primary); border-color: var(--primary); color: #fff; }
+  .chip[aria-pressed="true"] { background: var(--primary-soft); border-color: var(--primary); color: #fff; }
   .badge { display: inline-flex; align-items: center; padding: 1px 7px; border-radius: 999px; font-size: 11px; font-weight: 700; background: var(--surface-3); color: var(--text-2); white-space: nowrap; }
   .badge.primary { background: var(--primary-soft); color: var(--primary-text); }
   .badge.accent { background: rgba(232,127,160,.16); color: var(--accent); }
@@ -104,8 +112,6 @@
   /* ── Motion ─────────────────────────────────────────────
      Entry animations use fill-mode `backwards`, not `both`: a held final transform would
      override exit transitions (sheet, toast) and leave a permanent transform on the shell. */
-  @keyframes introMarkIn { 0% { opacity: 0; transform: scale(.72); } 70% { opacity: 1; transform: scale(1.04); } 100% { opacity: 1; transform: scale(1); } }
-  @keyframes introDotPop { from { opacity: 0; transform: scale(0); } }
   @keyframes fadeSlideUp { from { opacity: 0; transform: translateY(14px); } }
   @keyframes screenEnter { from { opacity: 0; transform: translateY(8px); } }
   @keyframes itemStagger { from { opacity: 0; transform: translateY(10px); } }
@@ -113,29 +119,27 @@
   @keyframes sheetDesktopPop { from { transform: translateY(20px) scale(.97); opacity: 0; } }
   @keyframes toastSlideIn { from { opacity: 0; transform: translateY(16px) scale(.96); } }
   .screen:not(.hidden), #shell:not(.hidden), #lock:not(.hidden) { animation: screenEnter 230ms cubic-bezier(.22, 1, .36, 1) backwards; }
-  #intro:not(.hidden) .hi-mark { animation: introMarkIn 480ms cubic-bezier(.22, 1, .36, 1) backwards; }
-  #intro:not(.hidden) .hi-dot { animation: introDotPop 260ms cubic-bezier(.34, 1.56, .64, 1) 240ms backwards; }
-  #intro:not(.hidden) .intro-card > div:nth-child(2) { animation: fadeSlideUp 360ms cubic-bezier(.22, 1, .36, 1) 180ms backwards; }
+  #intro:not(.hidden) .intro-card > div:first-child { animation: fadeSlideUp 360ms cubic-bezier(.22, 1, .36, 1) 180ms backwards; }
   #intro:not(.hidden) #intro-start { animation: fadeSlideUp 360ms cubic-bezier(.22, 1, .36, 1) 300ms backwards; }
   #intro:not(.hidden) .age-note { animation: fadeSlideUp 360ms cubic-bezier(.22, 1, .36, 1) 390ms backwards; }
 
   /* ── Full-screen entry screens ──────────────────────── */
   .screen { position: fixed; inset: 0; overflow-y: auto; display: flex; align-items: center; justify-content: center; padding: 24px 16px; }
-  #intro { background: radial-gradient(120% 80% at 50% 0%, #3b2370 0%, #1d1430 45%, var(--bg) 80%); }
+  #intro { background: radial-gradient(90% 55% at 50% 0%, rgba(130,94,208,.22) 0%, transparent 70%), var(--bg); }
   .intro-card { width: 100%; max-width: 400px; text-align: center; display: flex; flex-direction: column; align-items: center; gap: 18px; }
-  .hi-mark { position: relative; width: 148px; height: 148px; border-radius: 40px; display: flex; align-items: center; justify-content: center;
-    background: linear-gradient(145deg, #9a78e6 0%, var(--primary) 55%, #6a46b8 100%);
-    box-shadow: 0 18px 50px rgba(130, 94, 208, .45), inset 0 1px 0 rgba(255, 255, 255, .25); }
-  .hi-word { font-size: 76px; font-weight: 900; letter-spacing: -4px; color: #fff; line-height: 1; transform: translateY(-4px); }
-  .hi-dot { position: absolute; right: 26px; bottom: 30px; width: 18px; height: 18px; border-radius: 50%; background: var(--accent); box-shadow: 0 0 0 4px rgba(255, 255, 255, .18); }
-  .intro-title { font-size: 34px; font-weight: 900; letter-spacing: -.5px; }
+  .intro-title { font-size: 44px; font-weight: 700; letter-spacing: -1.2px; line-height: 1.15; }
   .intro-title span + span { color: var(--accent); }
   .intro-sub { color: var(--text-2); font-size: 15px; line-height: 1.7; }
   .age-note { font-size: 12px; color: var(--text-3); }
   #login { background: var(--bg); }
   .login-card { width: 100%; max-width: 440px; display: flex; flex-direction: column; gap: 18px; }
-  .brand { display: flex; align-items: center; gap: 10px; font-weight: 800; font-size: 18px; }
-  .brand-mark { width: 34px; height: 34px; border-radius: 10px; background: var(--primary); display: flex; align-items: center; justify-content: center; color: #fff; font-weight: 900; font-size: 15px; letter-spacing: -1px; }
+  /* Logo: the HIUNNI "h" tile + wordmark used on the client's own screens. Swap in the
+     original file (SVG/PNG) once the client sends it. */
+  .brand { display: flex; align-items: center; gap: 10px; font-weight: 800; font-size: 19px; letter-spacing: -.6px; }
+  .h-mark { width: 32px; height: 32px; border-radius: 9px; display: inline-flex; align-items: center; justify-content: center; flex-shrink: 0;
+    background: linear-gradient(145deg, #a27fec 0%, #825ED0 60%, #6a46b8 100%); color: #fff; font-weight: 800; font-size: 19px; letter-spacing: 0; line-height: 1;
+    box-shadow: 0 4px 14px rgba(130,94,208,.35), inset 0 1px 0 rgba(255,255,255,.22); }
+  .h-mark.lg { width: 88px; height: 88px; border-radius: 24px; font-size: 52px; }
   .dev-banner { border: 1px dashed var(--warn); background: rgba(232,180,92,.07); color: var(--warn); border-radius: var(--radius-sm); padding: 10px 12px; font-size: 13px; line-height: 1.6; }
   .account-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(130px, 1fr)); gap: 8px; }
   .account { text-align: left; padding: 12px; border-radius: var(--radius-sm); background: var(--surface); border: 1px solid var(--line); }
@@ -150,9 +154,9 @@
   .screen { padding-top: calc(24px + env(safe-area-inset-top)); padding-bottom: calc(24px + env(safe-area-inset-bottom)); }
   /* App lock (native only): covers everything, also in the OS app switcher. */
   #lock { position: fixed; inset: 0; z-index: 500; background: var(--bg); display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 18px; padding: 24px; text-align: center; }
-  #lock .hi-mark { width: 96px; height: 96px; border-radius: 26px; }
-  #lock .hi-word { font-size: 48px; letter-spacing: -2px; }
-  #lock .hi-dot { width: 12px; height: 12px; right: 17px; bottom: 20px; }
+
+
+
   .topbar { padding-top: env(safe-area-inset-top) !important; }
   .topbar { grid-area: top; display: flex; align-items: center; justify-content: space-between; padding: 0 12px 0 16px; border-bottom: 1px solid var(--line); background: var(--bg); }
   .mode-tag { font-size: 11px; font-weight: 700; color: var(--warn); border: 1px solid rgba(232,180,92,.4); border-radius: 999px; padding: 2px 8px; }
@@ -161,6 +165,9 @@
   .tab { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 3px; font-size: 11px; font-weight: 600; color: var(--text-3); position: relative; }
   .tab .icon { width: 22px; height: 22px; transition: transform .18s cubic-bezier(.22, 1, .36, 1); }
   .tab[aria-current="page"] { color: var(--primary-text); }
+  .tab[aria-current="page"]::before { content: ''; position: absolute; top: 0; left: 50%; width: 28px; height: 3px; margin-left: -14px; border-radius: 0 0 3px 3px; background: var(--primary); }
+  @media (max-width: 899px) { .tab.tab-my { display: none; } }
+  @media (min-width: 900px) { #me { display: none; } }
   .tab[aria-current="page"] .icon { transform: translateY(-1px); }
   .tab .dot { top: 6px; right: calc(50% - 22px); }
   .tab-label-long { display: none; }
@@ -169,14 +176,15 @@
     .tabs { flex-direction: column; justify-content: flex-start; gap: 4px; padding: 72px 12px 12px; border-top: none; border-right: 1px solid var(--line); }
     .tab { flex: 0 0 auto; flex-direction: row; justify-content: flex-start; gap: 12px; padding: 12px 14px; border-radius: var(--radius-sm); font-size: 15px; }
     .tab[aria-current="page"] { background: var(--primary-soft); }
+    .tab[aria-current="page"]::before { display: none; }
     .tab .dot { position: static; margin-left: auto; }
     .tab-label-short { display: none; } .tab-label-long { display: inline; }
   }
   .view { max-width: 760px; margin: 0 auto; padding: 16px 16px 32px; display: flex; flex-direction: column; gap: 14px; animation: screenEnter 220ms cubic-bezier(.22, 1, .36, 1) backwards; }
   .view.fill { height: 100%; padding-bottom: 0; gap: 10px; }
   .view-head { display: flex; align-items: center; gap: 6px; }
-  .view-title { font-size: 22px; font-weight: 800; letter-spacing: -.3px; }
-  .view-sub { font-size: 13px; color: var(--text-2); margin-top: -8px; }
+  .view-title { font-size: 28px; font-weight: 700; letter-spacing: -.6px; line-height: 1.25; }
+  .view-sub { font-size: 13px; color: var(--text-2); margin-top: -8px; word-break: keep-all; }
   .back { margin-left: -8px; }
   .section-label { font-size: 13px; font-weight: 700; color: var(--text-2); }
   .card { background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius); padding: 14px 16px; }
@@ -206,7 +214,9 @@
   .menu-row .icon { color: var(--primary-text); }
 
   /* ── Rooms / live status ─────────────────────────────── */
-  .room-card { padding: 14px 14px 12px 16px; }
+  .room-card { padding: 16px 14px 12px 16px; background: linear-gradient(165deg, #231f2c 0%, var(--surface) 70%); border-color: #2f2a3a; border-radius: 18px; }
+  .room-card:hover { border-color: #4a3f63; }
+  .room-meta { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 10px; }
   .room-head { display: flex; align-items: flex-start; gap: 6px; }
   .room-head .icon-btn { width: 44px; height: 44px; margin: -8px -8px 0 0; flex-shrink: 0; }
   /* Long Korean venue names: break between words, never mid-word, up to two lines. */
@@ -221,7 +231,7 @@
   /* Live counts: loading / none (not reported) / ok (0 is a real value) / error + retry */
   .stats { margin-top: 10px; }
   .stats4 { display: grid; grid-template-columns: repeat(4, 1fr); gap: 6px; }
-  .stat { background: var(--surface-2); border-radius: 10px; padding: 8px 4px; text-align: center; transition: opacity .2s; }
+  .stat { background: rgba(255,255,255,.035); border: 1px solid rgba(255,255,255,.05); border-radius: 12px; padding: 8px 4px; text-align: center; transition: opacity .2s; }
   .stat b { display: block; height: 26px; font-size: 20px; line-height: 26px; font-weight: 800; font-variant-numeric: tabular-nums; }
   .stat span { font-size: 12px; color: var(--text-2); }
   .stat.zero b { color: var(--text-2); }
@@ -239,10 +249,13 @@
 
   .room-layout { position: relative; flex: 1; min-height: 0; display: flex; flex-direction: column; }
   .view-title.clamp2, .clamp2 { word-break: keep-all; overflow-wrap: anywhere; display: -webkit-box; -webkit-line-clamp: 2; line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; line-height: 1.3; }
-  .tool-bar { display: grid; grid-template-columns: 1.5fr 1fr 1fr 1fr; gap: 6px; margin-top: 10px; }
-  .tool-bar .btn { min-height: 46px; padding: 6px 4px; font-size: 13px; word-break: keep-all; }
-  .tool-bar .btn.primary { font-size: 14px; }
-  .tool-bar .btn .icon { width: 18px; height: 18px; }
+  .room-hero { background: var(--plum); border: 1px solid var(--plum-line); border-radius: 18px; padding: 14px 14px 12px; }
+  .room-hero .stats { margin-top: 12px; }
+  .tool-bar { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 8px; margin-top: 8px; }
+  .tool-bar .btn { min-height: 64px; padding: 8px 4px; font-size: 13px; word-break: keep-all; flex-direction: column; gap: 4px; border-radius: 14px; background: var(--surface-2); }
+  .tool-bar .btn .icon { width: 20px; height: 20px; color: var(--primary-text); }
+  .tool-bar .btn.primary { grid-column: 1 / -1; flex-direction: row; min-height: 52px; font-size: 15px; background: var(--fill); }
+  .tool-bar .btn.primary .icon { color: #fff; }
 
   /* Search: clear button, sticky on lists, no-results reset */
   .search .clear { width: 36px; height: 36px; margin-right: -8px; }
@@ -255,18 +268,36 @@
   .staff-card .btn { min-height: 44px; flex-shrink: 0; }
   .staff-name { word-break: keep-all; overflow-wrap: anywhere; }
 
-  /* Home */
-  .home-hero { display: flex; flex-direction: column; align-items: stretch; width: 100%; text-align: left; border-radius: 18px; padding: 18px; background: linear-gradient(145deg, #9a78e6 0%, var(--primary) 52%, #5b3aa6 100%); color: #fff; box-shadow: 0 10px 30px rgba(130,94,208,.35); }
-  .home-hero .kicker { display: inline-flex; align-items: center; gap: 6px; font-size: 12px; font-weight: 700; opacity: .9; }
-  .home-hero .hero-title { font-size: 28px; font-weight: 900; letter-spacing: -.5px; margin-top: 4px; }
-  .home-hero .hero-text { font-size: 14px; line-height: 1.5; opacity: .92; margin-top: 2px; word-break: keep-all; }
-  .home-hero .summary { margin-top: 12px; font-size: 13px; font-weight: 700; min-height: 20px; }
-  .home-hero .cta { margin-top: 12px; display: flex; align-items: center; justify-content: center; gap: 4px; min-height: 50px; border-radius: 12px; background: #fff; color: #3b2470; font-weight: 800; font-size: 16px; }
-  .home-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
-  .home-tile { display: flex; flex-direction: column; align-items: flex-start; gap: 4px; padding: 14px; min-height: 88px; text-align: left; border-radius: var(--radius); background: var(--surface); border: 1px solid var(--line); }
-  .home-tile .icon { color: var(--primary-text); margin-bottom: 2px; }
-  .home-tile b { font-size: 15px; }
-  .home-tile span:last-child { font-size: 12px; color: var(--text-3); word-break: keep-all; }
+  /* Home — existing HIUNNI layout: date, "하이언니." title, quick buttons, 오늘의 초이스톡 card */
+  .home-head { display: flex; flex-direction: column; gap: 2px; }
+  .home-title { font-size: 34px; font-weight: 700; letter-spacing: -1.2px; line-height: 1.15; }
+  .home-title .pink-dot { color: var(--accent); }
+  .today { position: relative; overflow: hidden; background: var(--plum); border: 1px solid var(--plum-line); border-radius: 22px; padding: 20px 16px 16px; display: flex; flex-direction: column; gap: 6px; }
+  .today::after { content: ''; position: absolute; right: -60px; top: -70px; width: 220px; height: 220px; border-radius: 50%; background: radial-gradient(circle, rgba(154,120,230,.28) 0%, transparent 65%); pointer-events: none; }
+  .today h2 { font-size: 24px; font-weight: 700; letter-spacing: -.6px; line-height: 1.3; word-break: keep-all; }
+  .today .summary { font-size: 13px; color: var(--text-2); min-height: 20px; word-break: keep-all; }
+  .today-list { display: flex; flex-direction: column; margin: 6px 0 10px; border-top: 1px solid var(--plum-line); }
+  .today-row { display: flex; align-items: center; gap: 10px; min-height: 52px; padding: 8px 2px; border-bottom: 1px solid var(--plum-line); text-align: left; width: 100%; }
+  .today-row .name { flex: 1; min-width: 0; font-weight: 600; font-size: 15px; word-break: keep-all; overflow-wrap: anywhere; display: -webkit-box; -webkit-line-clamp: 2; line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+  .today-row .where { flex-shrink: 0; font-size: 13px; color: var(--text-2); display: inline-flex; align-items: center; gap: 2px; }
+  .today-row .where .icon { width: 14px; height: 14px; }
+  .today .btn.primary { min-height: 50px; font-size: 16px; position: relative; z-index: 1; }
+  .space-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+  .space { position: relative; overflow: hidden; display: flex; flex-direction: column; align-items: flex-start; gap: 4px; min-height: 112px; padding: 16px 14px; border-radius: 18px; text-align: left; border: 1px solid rgba(255,255,255,.06); }
+  .space b { font-size: 16px; font-weight: 700; }
+  .space span { font-size: 12px; color: var(--text-2); line-height: 1.5; word-break: keep-all; max-width: 75%; }
+  .space .icon { position: absolute; right: 12px; bottom: 12px; width: 34px; height: 34px; opacity: .55; }
+  .space.violet { background: linear-gradient(150deg, #2d2442, #1f1b29); } .space.violet .icon { color: #b9a2f0; }
+  .space.rose   { background: linear-gradient(150deg, #3a2232, #221a24); } .space.rose .icon { color: #f07ab6; }
+  .space.amber  { background: linear-gradient(150deg, #3a2e22, #231e1d); } .space.amber .icon { color: #e8b45c; }
+  .space.teal   { background: linear-gradient(150deg, #1f3330, #1a2122); } .space.teal .icon { color: #5cc9a0; }
+  .icon-tile { width: 40px; height: 40px; border-radius: 12px; background: var(--primary-soft); color: var(--primary-text); display: inline-flex; align-items: center; justify-content: center; flex-shrink: 0; }
+  .eyebrow { font-size: 11px; font-weight: 800; letter-spacing: .14em; text-transform: uppercase; color: var(--eyebrow); }
+  :lang(ko) .eyebrow { letter-spacing: .04em; }
+  .meta-i { display: inline-flex; align-items: center; gap: 4px; }
+  .meta-i .icon { width: 14px; height: 14px; color: var(--text-3); }
+  #me.on { color: var(--primary-text); background: var(--primary-soft); }
+  .topbar .icon-btn .dot { top: 2px; right: 0; }
   /* Coming back to a list: no entrance animation, so it reads as the same place. */
   .view.returning, .view.returning .list > * { animation: none; }
   /* Keyboard open on a phone: give the space to the results, not the tab bar. */
@@ -304,7 +335,7 @@
   .comment { padding: 12px 0; border-bottom: 1px solid var(--line); }
   .comment:last-child { border-bottom: none; }
   .comment .secret-hidden { color: var(--text-3); font-size: 13px; }
-  .fab { position: sticky; bottom: 16px; align-self: flex-end; width: 52px; height: 52px; border-radius: 50%; background: var(--primary); color: #fff; display: flex; align-items: center; justify-content: center; box-shadow: 0 6px 20px rgba(130,94,208,.45); margin-top: -8px; }
+  .fab { position: sticky; bottom: 16px; align-self: flex-end; width: 52px; height: 52px; border-radius: 50%; background: var(--fill); color: #fff; display: flex; align-items: center; justify-content: center; box-shadow: 0 6px 20px rgba(130,94,208,.45); margin-top: -8px; }
   .fab .icon { width: 24px; height: 24px; }
 
   /* ── Places ──────────────────────────────────────────── */
@@ -371,11 +402,9 @@
 <section id="intro" class="screen hidden" aria-label="시작" data-i18n-aria>
   <button class="btn sm lang-btn lang-corner" data-lang-toggle></button>
   <div class="intro-card">
-    <div class="hi-mark" role="img" aria-label="하이언니" data-i18n-aria>
-      <span class="hi-word">hi</span><span class="hi-dot" aria-hidden="true"></span>
-    </div>
     <div>
-      <div class="intro-title"><span data-i18n>하이언니</span><span>.</span></div>
+      <span class="h-mark lg" aria-hidden="true">h</span>
+      <div class="intro-title" style="margin-top:18px"><span data-i18n>하이언니</span><span>.</span></div>
       <p class="intro-sub" data-i18n-html="introSub">언니들끼리 편하게, 익명으로.<br>오늘의 현황과 이야기를 한곳에서.</p>
     </div>
     <button class="btn primary block" id="intro-start" data-i18n>시작하기</button>
@@ -387,7 +416,7 @@
 <section id="login" class="screen hidden" aria-label="로그인" data-i18n-aria>
   <div class="login-card">
     <div class="between">
-      <div class="brand"><div class="brand-mark">hi</div><span data-i18n>하이언니</span></div>
+      <div class="brand"><span class="h-mark" aria-hidden="true">h</span><span data-i18n>하이언니</span></div>
       <div class="row"><button class="btn sm lang-btn" data-lang-toggle></button><button class="btn sm" id="login-back" data-i18n>처음으로</button></div>
     </div>
     <div>
@@ -408,12 +437,13 @@
 <div id="shell" class="hidden">
   <header class="topbar">
     <div class="row">
-      <div class="brand" style="font-size:16px"><div class="brand-mark" style="width:30px;height:30px">hi</div><span data-i18n>하이언니</span></div>
+      <div class="brand"><span class="h-mark" aria-hidden="true">h</span><span data-i18n>하이언니</span></div>
       <span class="mode-tag" title="합성 데이터로 동작하는 개발 서버입니다" data-i18n data-i18n-title>개발 · 합성</span>
     </div>
     <div class="row" style="gap:2px">
       <button class="btn sm lang-btn" data-lang-toggle></button>
       <button class="icon-btn" id="bell" aria-label="알림" data-i18n-aria></button>
+      <button class="icon-btn" id="me" aria-label="마이페이지" data-i18n-aria></button>
     </div>
   </header>
   <main id="main" tabindex="-1"></main>
@@ -421,7 +451,7 @@
 </div>
 
 <div id="lock" class="hidden" role="dialog" aria-modal="true" aria-label="앱 잠금" data-i18n-aria>
-  <div class="hi-mark" aria-hidden="true"><span class="hi-word">hi</span><span class="hi-dot"></span></div>
+  <span class="h-mark lg" aria-hidden="true">h</span>
   <div><b style="font-size:18px" data-i18n>하이언니가 잠겨 있어요</b><p class="muted small" style="margin-top:6px" data-i18n>Face ID, 지문 또는 휴대폰 비밀번호로 열 수 있어요.</p></div>
   <button class="btn primary" id="unlock-btn" style="min-width:200px" data-i18n>잠금 해제</button>
 </div>
@@ -467,6 +497,14 @@ const EN = {
  "가게별 초중·엔트리·대기·빈방을 실시간으로 보고, 가게방에서 담당을 찾아보세요.": "See live counts for each store, then find staff in the store room.",
  "{name}님, 반가워요": "Hi, {name}",
  "바로가기": "Shortcuts",
+ "지금 둘러볼 공간": "Spaces to explore",
+ "가게 현황을 한눈에 보고, 담당까지 바로 찾아요.": "See every venue at a glance and find the right manager fast.",
+ "주제별로 모여 가볍게 수다": "Casual chats by topic",
+ "실시간 가게 현황": "Live venue status",
+ "주제별 채팅": "Topic chats",
+ "가게방 안내": "Venue tools",
+ 
+ "오늘의 초이스톡": "Today's ChoiceTalk",
  "주제별 가벼운 수다": "Casual topic chats",
  "게시판 · 정보 · 질문": "Boards · tips · questions",
  "헤어 · 네일 · 생활": "Hair · nails · essentials",
@@ -911,6 +949,10 @@ const ICONS = {
   x: '<path d="M18 6L6 18M6 6l12 12"/>',
   home: '<path d="M3 11l9-8 9 8"/><path d="M5 9.5V20h5v-6h4v6h5V9.5"/>',
   chevron: '<path d="M9 18l6-6-6-6"/>',
+  users: '<path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75"/>',
+  tag: '<path d="M20.6 13.4l-7.2 7.2a2 2 0 0 1-2.8 0L3 13V3h10l7.6 7.6a2 2 0 0 1 0 2.8z"/><circle cx="7.5" cy="7.5" r="1.5"/>',
+  book: '<path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20V3H6.5A2.5 2.5 0 0 0 4 5.5z"/><path d="M4 19.5A2.5 2.5 0 0 0 6.5 22H20v-5"/>',
+  door: '<path d="M4 21h16"/><path d="M6 21V4a1 1 0 0 1 1-1h10a1 1 0 0 1 1 1v17"/><circle cx="14.5" cy="12" r="1"/>',
   staff: '<circle cx="10" cy="8" r="4"/><path d="M3 21v-1a6 6 0 0 1 9.5-4.9"/><circle cx="17.5" cy="17.5" r="2.8"/><path d="M21.5 21.5l-2-2"/>',
 };
 /** ICONS are trusted constants, so innerHTML is safe here. */
@@ -1220,7 +1262,7 @@ function pagedList({ fetchPage, renderItem, emptyText }) {
 }
 
 /* ════════════════════════════════════════════════════════════════════
-   Navigation (5 tabs, each with a view stack)
+   Navigation (5 tabs on phones + 마이 in the header; 6 in the desktop sidebar)
    ════════════════════════════════════════════════════════════════════ */
 const TABS = [
   ['home', t('홈'), t('홈'), 'home', viewHome],
@@ -1234,11 +1276,14 @@ const TABS = [
 function drawTabs() {
   const pending = S.counts ? S.counts.pendingDmRequests + S.counts.unreadNotifications : 0;
   $('#tabs').replaceChildren(...TABS.map(([id, long, short, ic]) =>
-    h('button', { class: 'tab', 'aria-current': S.tab === id ? 'page' : null, onclick: () => switchTab(id) },
+    h('button', { class: 'tab' + (id === 'my' ? ' tab-my' : ''), 'aria-current': S.tab === id ? 'page' : null, onclick: () => switchTab(id) },
       icon(ic), h('span', { class: 'tab-label-short' }, short), h('span', { class: 'tab-label-long' }, long),
       id === 'my' && pending > 0 && h('span', { class: 'dot' }, pending > 99 ? '99+' : pending))));
   const unread = S.counts?.unreadNotifications || 0;
   $('#bell').replaceChildren(icon('bell'), unread > 0 && h('span', { class: 'dot' }, unread > 99 ? '99+' : unread));
+  const me = $('#me');
+  me.replaceChildren(icon('user'), pending > 0 && h('span', { class: 'dot' }, pending > 99 ? '99+' : pending));
+  me.classList.toggle('on', S.tab === 'my');
 }
 
 function clearStack() {
@@ -1459,45 +1504,55 @@ function createChat({ showNick, send, meId = S.user.id, emptyText = t('첫 메�
    홈 — the way into 초이스톡
    ════════════════════════════════════════════════════════════════════ */
 function viewHome() {
-  const summary = h('span', { class: 'summary', 'aria-live': 'polite' });
+  const summary = h('p', { class: 'summary', 'aria-live': 'polite' });
+  const listEl = h('div', { class: 'today-list' });
   const retryRow = h('div');
+  const openRoom = r => { switchTab('live'); push(viewRoom(r.id)); };
   async function loadSummary() {
     summary.textContent = t('가게방 현황을 불러오는 중…');
     retryRow.replaceChildren();
     try {
       const r = await api('GET', '/rooms' + qs({ kind: 'store', limit: 50 }));
-      const fresh = r.items.filter(x => x.liveStatus && Date.now() - Date.parse(x.liveStatus.updatedAt) < 15 * 60000).length;
+      const fresh = r.items.filter(x => x.liveStatus && Date.now() - Date.parse(x.liveStatus.updatedAt) < 15 * 60000);
       const n = r.items.length + (r.hasMore ? '+' : '');
       summary.textContent = !r.items.length ? t('아직 열린 가게방이 없어요.')
-        : fresh ? t('가게방 {n}곳 · {m}곳이 15분 안에 업데이트', { n, m: fresh })
+        : fresh.length ? t('가게방 {n}곳 · {m}곳이 15분 안에 업데이트', { n, m: fresh.length })
         : t('가게방 {n}곳', { n });
+      // Most recently updated first, three rows.
+      const top = [...r.items].sort((a, b) => (Date.parse(b.liveStatus?.updatedAt || 0) || 0) - (Date.parse(a.liveStatus?.updatedAt || 0) || 0)).slice(0, 3);
+      listEl.replaceChildren(...top.map(x => h('button', { class: 'today-row', onclick: () => openRoom(x) },
+        h('span', { class: 'name' }, x.title),
+        h('span', { class: 'where' }, (x.region && REGIONS[x.region]) || '', icon('chevron')))));
+      listEl.classList.toggle('hidden', !top.length);
     } catch (e) {
       if (e instanceof Stale) return;
       summary.textContent = t('현황 요약을 불러오지 못했어요.');
+      listEl.replaceChildren(); listEl.classList.add('hidden');
       retryRow.replaceChildren(h('div', { class: 'notice-bar' }, h('span', null, t('초이스톡은 그대로 열 수 있어요.')), h('button', { class: 'btn sm', onclick: loadSummary }, t('다시 시도'))));
     }
   }
-  const hero = h('button', { class: 'home-hero', 'aria-label': t('초이스톡 열기'), onclick: () => switchTab('live') },
-    h('span', { class: 'kicker' }, h('span', { class: 'led ok' }), t('실시간')),
-    h('span', { class: 'hero-title' }, t('초이스톡')),
-    h('span', { class: 'hero-text' }, t('가게별 초중·엔트리·대기·빈방을 실시간으로 보고, 가게방에서 담당을 찾아보세요.')),
-    summary,
-    h('span', { class: 'cta' }, t('초이스톡 열기'), icon('chevron')));
-  const tile = (ic, title, sub, go) => h('button', { class: 'home-tile', onclick: go }, icon(ic), h('b', null, title), h('span', null, sub));
+  const today = new Date().toLocaleDateString(LOCALE, { ...KST, month: 'long', day: 'numeric', weekday: 'long' });
+  const space = (tone, ic, title, sub, go) => h('button', { class: 'space ' + tone, onclick: go }, h('b', null, title), h('span', null, sub), icon(ic));
   const el = h('div', { class: 'view' },
-    h('div', null, h('div', { class: 'small muted' }, t('{name}님, 반가워요', { name: S.user.nickname })), h('h1', { class: 'view-title' }, t('하이언니'))),
-    hero,
-    retryRow,
-    h('div', { class: 'section-label' }, t('바로가기')),
-    h('div', { class: 'home-grid' },
-      tile('chat', t('데일리톡'), t('주제별 가벼운 수다'), () => switchTab('daily')),
-      tile('board', t('라운지'), t('게시판 · 정보 · 질문'), () => switchTab('lounge')),
-      tile('pin', t('플레이스'), t('헤어 · 네일 · 생활'), () => switchTab('places')),
-      tile('inbox', t('내 대화'), t('수락된 1:1 대화'), () => { switchTab('my'); push(viewConversations()); })));
+    h('div', { class: 'home-head' },
+      h('div', { class: 'eyebrow' }, today),
+      h('h1', { class: 'home-title' }, t('{name}님, 반가워요', { name: S.user.nickname }), h('span', { class: 'pink-dot', 'aria-hidden': 'true' }, '.'))),
+    h('section', { class: 'today', 'aria-label': t('오늘의 초이스톡') },
+      h('div', { class: 'eyebrow' }, t('오늘의 초이스톡')),
+      h('h2', null, t('가게 현황을 한눈에 보고, 담당까지 바로 찾아요.')),
+      summary,
+      listEl,
+      retryRow,
+      h('button', { class: 'btn primary block', onclick: () => switchTab('live') }, t('초이스톡 열기'), icon('chevron'))),
+    h('div', { class: 'between' }, h('div', { class: 'section-label' }, t('지금 둘러볼 공간'))),
+    h('div', { class: 'space-grid' },
+      space('violet', 'chat', t('데일리톡'), t('주제별로 모여 가볍게 수다'), () => switchTab('daily')),
+      space('rose', 'board', t('라운지'), t('게시판 · 정보 · 질문'), () => switchTab('lounge')),
+      space('amber', 'pin', t('플레이스'), t('헤어 · 네일 · 생활'), () => switchTab('places')),
+      space('teal', 'inbox', t('내 대화'), t('수락된 1:1 대화'), () => { switchTab('my'); push(viewConversations()); })));
   loadSummary();
   return { el, resume: loadSummary };
 }
-
 /* ════════════════════════════════════════════════════════════════════
    담당 찾기 — staff search for one store room (F08)
    Back returns to the same room; back again to the same list position.
@@ -1665,12 +1720,15 @@ function viewRooms(mode) {
     const fresh = h('span', null, isStore ? freshTag(r.liveStatus) : '');
     cards.set(r.id, { stats, fresh });
     const open = () => push(viewRoom(r.id));
-    const meta = [r.region && REGIONS[r.region], t('참여 {n}명', { n: `${r.activeCount}${r.capacity ? '/' + r.capacity : ''}` }), r.joinPolicy === 'approval' ? t('승인제') : t('바로 참여')];
+    const meta = [
+      r.region && h('span', { class: 'meta-i' }, icon('pin'), REGIONS[r.region]),
+      h('span', { class: 'meta-i', 'aria-label': t('참여 {n}명', { n: `${r.activeCount}${r.capacity ? '/' + r.capacity : ''}` }) }, icon('users'), `${r.activeCount}${r.capacity ? '/' + r.capacity : ''}`),
+      h('span', { class: 'badge ' + (r.joinPolicy === 'approval' ? 'primary' : 'ok') }, r.joinPolicy === 'approval' ? t('승인제') : t('바로 참여'))];
     return h('div', { class: 'card click room-card', role: 'button', tabindex: 0, onclick: open, onkeydown: e => e.target === e.currentTarget && e.key === 'Enter' && open() },
       h('div', { class: 'room-head' },
         h('div', { class: 'grow', style: 'min-width:0' },
           h('div', { class: 'venue-name' }, r.title),
-          h('div', { class: 'room-meta' }, meta.filter(Boolean).join(' · '))),
+          h('div', { class: 'room-meta' }, ...meta.filter(Boolean))),
         heartBtn(r.saved, saveToggle('room', r.id))),
       stats?.el,
       h('div', { class: 'room-foot' }, fresh,
@@ -1758,7 +1816,9 @@ function viewRooms(mode) {
   startLive();
 
   const el = h('div', { class: 'view' },
-    h('div', { class: 'between' }, h('h1', { class: 'view-title' }, isDaily ? t('데일리톡') : t('초이스톡')), !isDaily && badge.el),
+    h('div', null,
+      h('div', { class: 'eyebrow' }, isDaily ? t('주제별 채팅') : t('실시간 가게 현황')),
+      h('div', { class: 'between' }, h('h1', { class: 'view-title' }, isDaily ? t('데일리톡') : t('초이스톡')), !isDaily && badge.el)),
     h('p', { class: 'view-sub' }, isDaily ? t('주제별로 모여 가볍게 이야기해요.') : t('가게별 초중·엔트리·대기·빈방을 실시간으로 확인해요.')),
     h('div', { class: 'sticky-search' }, search.el),
     kindChips,
@@ -1802,12 +1862,18 @@ function viewRoom(roomId) {
     // Store tools sit under the counts with visible labels; 담당 찾기 is the main action.
     const tools = room.hasStoreTools && h('div', { class: 'tool-bar', role: 'toolbar', 'aria-label': t('가게방 도구') },
       h('button', { class: 'btn primary', onclick: () => push(viewStaff(room)) }, icon('staff'), t('담당 찾기')),
-      h('button', { class: 'btn', onclick: () => toolsSheet('prices') }, t('가격표')),
-      h('button', { class: 'btn', onclick: () => toolsSheet('terms') }, t('용어')),
-      h('button', { class: 'btn', onclick: () => toolsSheet('vacancy') }, t('빈방 기록')));
+      h('button', { class: 'btn', onclick: () => toolsSheet('prices') }, icon('tag'), t('가격표')),
+      h('button', { class: 'btn', onclick: () => toolsSheet('terms') }, icon('book'), t('용어')),
+      h('button', { class: 'btn', onclick: () => toolsSheet('vacancy') }, icon('door'), t('빈방 기록')));
     statusWrap.replaceChildren(
-      h('div', { class: 'row small muted', style: 'flex-wrap:wrap' }, h('span', { class: 'badge primary' }, room.anonymous ? t('익명 오픈톡') : ROOM_KIND[room.kind]), stateBadge(room.myState), room.myAlias && h('span', null, t('내 닉네임: ') + room.myAlias.nickname), room.region && REGIONS[room.region], h('span', { class: 'grow' }), badge.el),
-      stats ? stats.el : '',
+      h('div', { class: 'room-hero' },
+        h('div', { class: 'between' },
+          h('span', { class: 'eyebrow' }, [room.region && REGIONS[room.region], room.anonymous ? t('익명 오픈톡') : ROOM_KIND[room.kind]].filter(Boolean).join(' · ')),
+          badge.el),
+        h('div', { class: 'row small muted', style: 'flex-wrap:wrap;margin-top:6px' }, stateBadge(room.myState), room.myAlias && h('span', null, t('내 닉네임: ') + room.myAlias.nickname),
+          room.activeCount != null && h('span', { class: 'meta-i' }, icon('users'), `${room.activeCount}${room.capacity ? '/' + room.capacity : ''}`)),
+        stats ? stats.el : ''),
+      tools ? h('div', { class: 'section-label', style: 'margin-top:14px' }, t('가게방 안내')) : '',
       tools || '');
 
     if (room.status === 'closed') {
@@ -2656,6 +2722,7 @@ async function logout() {
 $('#intro-start').addEventListener('click', showLogin);
 $('#login-back').addEventListener('click', () => show('intro'));
 $('#bell').addEventListener('click', () => { if (S.tab !== 'my') switchTab('my'); push(viewNotifications()); });
+$('#me').addEventListener('click', () => switchTab('my'));
 
 (async function boot() {
   await initNative();
