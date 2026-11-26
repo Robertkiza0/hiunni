@@ -240,6 +240,29 @@
   /* 초이스톡 opens like a shop: two photo cards per row on phones, three on wider screens. */
   .shop-view { gap: 10px; padding-top: 10px; }
   .shop-head .view-title { font-size: 22px; }
+  /* 초이스톡 banner: one illustration at a time, popping in, then a small idle motion. */
+  .shop-banner { position: relative; height: 112px; border-radius: 16px; overflow: hidden; background: var(--plum); border: 1px solid var(--plum-line); cursor: pointer; user-select: none; touch-action: pan-y; -webkit-tap-highlight-color: transparent; }
+  .sb-slide { position: absolute; inset: 0; display: flex; align-items: center; justify-content: space-between; opacity: 0; transform: translateX(14px); transition: opacity .45s ease, transform .45s cubic-bezier(.22,1,.36,1); pointer-events: none; }
+  .sb-slide.on { opacity: 1; transform: none; }
+  .sb-text { display: flex; flex-direction: column; gap: 4px; padding: 0 0 10px 16px; min-width: 0; word-break: keep-all; }
+  .sb-text b { font-size: 16px; font-weight: 800; color: var(--text); }
+  .sb-text span { font-size: 13px; color: var(--text-2); line-height: 1.4; }
+  .sb-slide.on .sb-text > * { animation: sbText .5s cubic-bezier(.22,1,.36,1) backwards; }
+  .sb-slide.on .sb-text span { animation-delay: .08s; }
+  .sb-art { flex: none; align-self: flex-end; height: 104px; width: auto; margin: 0 12px -2px 8px; transform-origin: 50% 100%; }
+  .sb-slide.on .sb-art { animation: sbPop .6s cubic-bezier(.34,1.56,.64,1) both, var(--idle) 3s ease-in-out .6s infinite; }
+  .sb-talking { --idle: sbSway; }
+  .sb-hello { --idle: sbBob; height: 96px; margin-bottom: 6px; }
+  .sb-wave { --idle: sbWave; transform-origin: 30% 100%; }
+  .sb-dots { position: absolute; left: 16px; bottom: 12px; display: flex; gap: 5px; }
+  .sb-dots i { width: 6px; height: 6px; border-radius: 3px; background: rgba(255,255,255,.25); transition: width .3s ease, background .3s ease; }
+  .sb-dots i.on { width: 16px; background: var(--primary-text); }
+  @keyframes sbPop { from { opacity: 0; transform: translateY(14px) scale(.9); } }
+  @keyframes sbText { from { opacity: 0; transform: translateY(6px); } }
+  @keyframes sbSway { 50% { transform: rotate(-2deg); } }
+  @keyframes sbBob { 50% { transform: translateY(-6px); } }
+  @keyframes sbWave { 25% { transform: rotate(3deg); } 75% { transform: rotate(-2deg); } }
+  @media (min-width: 600px) { .shop-banner { height: 128px; } .sb-art { height: 120px; } .sb-hello { height: 108px; } .sb-text b { font-size: 18px; } .sb-text { padding-left: 22px; } }
   .shop-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px 10px; }
   .shop-grid > :not(.room-card) { grid-column: 1 / -1; }
   @media (min-width: 600px) { .shop-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 16px 12px; } }
@@ -678,6 +701,11 @@ const EN = {
  "현황 {t}": "Updated {t}",
  "참여 {n}명": "{n} joined",
  "익명 오픈톡": "Anonymous Open Talk",
+ "지금 열린 가게를 한눈에 확인해요": "See which venues are open right now",
+ "바로 참여 · 승인제": "Open to join · Approval",
+ "방마다 참여 방식이 달라요": "Each room has its own way to join",
+ "익명으로 편하게 이야기해요": "Chat comfortably, anonymously",
+ "안내": "Highlights",
  "종료": "Closed",
  "승인제": "Approval needed",
  "바로 참여": "Open to join",
@@ -1807,6 +1835,39 @@ function productCard(r, stats, fresh, open) {
       isStore && h('div', { class: 'room-foot' }, fresh)));
 }
 
+/** 초이스톡 top banner: the client's illustrations, gently animated, one slide at a time.
+ *  Decorative only (no navigation); tap or swipe moves to the next slide. */
+const SHOP_SLIDES = [
+  { art: 'talking', title: '실시간 가게 현황', sub: '지금 열린 가게를 한눈에 확인해요' },
+  { art: 'hello', title: '바로 참여 · 승인제', sub: '방마다 참여 방식이 달라요' },
+  { art: 'wave', title: '익명 오픈톡', sub: '익명으로 편하게 이야기해요' },
+];
+function shopBanner() {
+  const reduce = matchMedia('(prefers-reduced-motion: reduce)').matches;
+  let cur = 0, timer = null, x0 = null, swiped = false;
+  const slides = SHOP_SLIDES.map((s, i) => h('div', { class: 'sb-slide' + (i ? '' : ' on'), 'aria-hidden': String(i > 0) },
+    h('div', { class: 'sb-text' }, h('b', null, t(s.title)), h('span', null, t(s.sub))),
+    h('img', { class: 'sb-art sb-' + s.art, src: `art/${s.art}.png`, alt: '', decoding: 'async' })));
+  const dots = SHOP_SLIDES.map((_, i) => h('i', { class: i ? '' : 'on' }));
+  const go = i => {
+    slides[cur].classList.remove('on'); slides[cur].setAttribute('aria-hidden', 'true'); dots[cur].className = '';
+    cur = (i + slides.length) % slides.length;
+    slides[cur].classList.add('on'); slides[cur].setAttribute('aria-hidden', 'false'); dots[cur].className = 'on';
+  };
+  const stop = () => { clearInterval(timer); timer = null; };
+  const start = () => {
+    stop();
+    if (!reduce) timer = setInterval(() => { if (!document.hidden && el.isConnected) go(cur + 1); }, 4500);
+  };
+  const el = h('section', { class: 'shop-banner', 'aria-label': t('안내'),
+    onclick: () => { if (swiped) { swiped = false; return; } go(cur + 1); start(); },
+    onpointerdown: e => { x0 = e.clientX; swiped = false; },
+    onpointerup: e => { if (x0 != null && Math.abs(e.clientX - x0) > 40) { swiped = true; go(cur + (e.clientX < x0 ? 1 : -1)); start(); } x0 = null; },
+  }, slides, h('div', { class: 'sb-dots', 'aria-hidden': 'true' }, dots));
+  start();
+  return { el, start, stop };
+}
+
 function viewRooms(mode) {
   const isDaily = mode === 'daily';
   const DEFAULTS = { kind: isDaily ? 'daily' : 'store,general', region: '', q: '', saved: false };
@@ -1923,12 +1984,14 @@ function viewRooms(mode) {
   const stopLive = () => { liveGen++; clearTimeout(failTimer); failTimer = null; live?.close(); live = null; };
   startLive();
 
+  const banner = isDaily ? null : shopBanner();
   if (!isDaily) list.listEl.classList.add('shop-grid');
   const el = h('div', { class: 'view' + (isDaily ? '' : ' shop-view') },
     isDaily
       ? h('div', null, h('div', { class: 'eyebrow' }, t('주제별 채팅')), h('h1', { class: 'view-title' }, t('데일리톡')))
       : h('div', { class: 'between shop-head' }, h('h1', { class: 'view-title' }, t('초이스톡')), badge.el),
     isDaily && h('p', { class: 'view-sub' }, t('주제별로 모여 가볍게 이야기해요.')),
+    banner?.el,
     h('div', { class: 'sticky-search' }, search.el),
     isDaily
       ? h('div', { class: 'row' }, h('div', { class: 'grow' }, regionChips), savedChip)
@@ -1937,10 +2000,10 @@ function viewRooms(mode) {
   reloadList();
   return {
     el,
-    cleanup: stopLive,
-    pause: stopLive,
+    cleanup: () => { stopLive(); banner?.stop(); },
+    pause: () => { stopLive(); banner?.stop(); },
     // Coming back from a room: keep the list (and scroll position) and just refresh the numbers.
-    resume: () => { startLive(); refreshCounts(); },
+    resume: () => { startLive(); refreshCounts(); banner?.start(); },
   };
 }
 
