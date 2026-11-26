@@ -1239,6 +1239,11 @@ class Live {
   }
   close() {
     this.closed = true;
+    // We closed it on purpose (screen paused or left): stay silent. Otherwise the old socket's late
+    // onclose would paint "연결 종료" over the badge the next connection is already using.
+    // A server-side end (kicked, blocked: 4003/revoked) does not go through close() and still reports.
+    this.onState = null;
+    this.onEvent = () => {};
     clearTimeout(this.timer);
     clearInterval(this.ping);
     try { this.ws?.close(1000); } catch {}
