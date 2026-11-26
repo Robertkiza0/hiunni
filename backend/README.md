@@ -40,7 +40,7 @@ curl -X POST localhost:8787/auth/dev-login -H 'Content-Type: application/json' -
 | ID | Item | What exists here | Verified by | Still needed (cannot be done without client access) |
 |---|---|---|---|---|
 | F01 | Cloudflare migration | Worker + D1 schema (`migrations/0001_init.sql`), bearer sessions, logout, withdraw | tests | Production source & D1 backup; reconcile schema with the real `drizzle/`; record counts and ID/hash comparison; **real phone verification (PortOne/KCP) + OAuth login replacing `/auth/dev-login`**; rollback rehearsal |
-| F02 | Photos on R2 | Upload with type sniffing (jpeg/png/webp, ≤10 MB), SHA-256, private bucket, 5-minute HMAC-signed URLs, access via DM/room membership, owner delete | tests (403 unauthorised/tampered/expired, byte hash round-trip) | Migrating existing DB photos to R2 with before/after file counts and hashes; mobile picker/upload on devices |
+| F02 | Photos on R2 | Upload with type sniffing (jpeg/png/webp, ≤10 MB), SHA-256, private bucket, 5-minute HMAC-signed URLs, access via DM/room membership, owner delete. **Migration tool** `tools/migrate-photos.mjs` (see "F02 photo migration") + `legacy_media_refs` (migration 0005) | tests; `tools/test-migrate-photos.mjs` (24 checks on a synthetic copy of the existing schema, incl. upload to local R2/D1) | The client's D1 export; R2 enabled on the target account; run on staging, then the client's approval for production; linking `legacy_media_refs` to new rows once F01 maps members and posts |
 | F03 | <1 s realtime | Durable Object per channel (`room:`, `dm:`, `status`); single-use 30 s tickets; idempotent sends (`requestId`); `afterSeq` backfill after reconnect; socket revocation (4003) on kick/leave/block/close | tests (two clients in Miniflare; delivery well under 1 s locally) | **Two physical phones on staging**: measure latency, reconnect and offline behaviour; Flutter client subscription |
 | F04 | Anonymous 1:1 DM | Request (from a profile or a post) → accept/reject/cancel; one conversation per pair (idempotent accept); no messages before acceptance; third-party 403; photos; read receipts; block cuts sockets and sending both ways; reports | tests (A→B→talk→C denied→block→logout scenario) | Moderation workflow for reports; two-device check |
 | F05 | Push | Device token register/move/delete (removed on logout and withdrawal); per-type toggles (comment/dm/saved); KST DND window; hide-content; secret comments and DM bodies never in payloads; inbox + read. **Sender** (`src/lib/push-send.ts`, migration 0004): FCM HTTP v1 for Android and iPhone, sent right after the write and by a 1-minute cron; retries with backoff (5 tries, `Retry-After`), drops pushes older than 24 h, forgets uninstalled tokens, pauses on bad credentials without using up tries, never sends a row twice; admin status at `GET /push/outbox` | tests (signed service-account JWT checked, fake FCM) | The client's Firebase project: `FCM_SERVICE_ACCOUNT` secret, `google-services.json`, `GoogleService-Info.plist` and the APNs key uploaded to Firebase (see "F05 setup"). Real-device receipt in foreground, background and killed states |
@@ -134,3 +134,26 @@ The sender is in place; it needs the client's Firebase project. Nothing below go
    closed, get a comment, an accepted DM and a saved-store update; tap each and land on the right
    screen; turn a type off and confirm nothing arrives. `GET /push/outbox` shows each row `sent`, or
    the reason it failed.
+
+## F02 photo migration
+
+The existing service keeps pictures inside its database as base64 text (raw or `data:image/…`),
+for example `place_photos.image`, `recruiter_profiles.photo`, `group_profiles.photo`.
+`tools/migrate-photos.mjs` moves them to R2 without touching the source:
+
+```bash
+npx wrangler d1 export <client db> --remote --output export.sql   # needs the client's access
+node --no-warnings tools/migrate-photos.mjs --source export.sql --work ./photo-run --verify
+node --no-warnings tools/migrate-photos.mjs --source export.sql --work ./photo-run --upload staging
+```
+
+- Every text column of every table is scanned, so unknown columns are still found and listed in
+  `report.json` (counts per table/column, bytes).
+- Each distinct picture is stored once at `legacy/<sha256>.<ext>`; the type comes from the bytes.
+  Cut-off or look-alike values are listed in `manifest.jsonl` with the reason, never uploaded.
+- `media-import.sql` adds the `media` rows and one `legacy_media_refs` row per source cell
+  (`INSERT OR IGNORE`, safe to apply twice). Owner is the placeholder `legacy-import` until F01.
+- Running it again gives 0 new files and the same manifest and SQL; `--verify` re-hashes every
+  file and reports missing files, checksum errors and broken references (F02 acceptance).
+- `--upload` only accepts `local` or `staging`. It is resumable (`uploaded-<target>.txt`).
+- Rehearsal on synthetic data: `node --no-warnings tools/test-migrate-photos.mjs [--upload-local]`.
