@@ -39,7 +39,7 @@ curl -X POST localhost:8787/auth/dev-login -H 'Content-Type: application/json' -
 
 | ID | Item | What exists here | Verified by | Still needed (cannot be done without client access) |
 |---|---|---|---|---|
-| F01 | Cloudflare migration | Worker + D1 schema (`migrations/0001_init.sql`), bearer sessions, logout, withdraw | tests | Production source & D1 backup; reconcile schema with the real `drizzle/`; record counts and ID/hash comparison; **real phone verification (PortOne/KCP) + OAuth login replacing `/auth/dev-login`**; rollback rehearsal |
+| F01 | Cloudflare migration | Worker + D1 schema, bearer sessions, logout, withdraw. **Migration tool** `tools/migrate-members.mjs` (see "F01 member migration"): members, nicknames, withdrawn accounts, Google/Naver links (`oauth_links`, migration 0007), shops → stores + store rooms (업종 grouped, original label kept), latest live status, saved shops, posts/comments/likes (hidden stays hidden), 오픈톡 rooms, members and messages; ids kept; report lists every source table not carried over | tests; `tools/test-migrate-members.mjs` (25 checks on the existing service's own table definitions, incl. photos → covers); dry run on its local preview database (all checks clean) | The client's D1 export; import into a new database on the client's Cloudflare account (photos first, then members); Peter's decisions on the tables not carried over (places, terms, groups, levels, staff roles…) and on board categories; **real phone verification (PortOne/KCP) + OAuth login replacing `/auth/dev-login`**; recovery rehearsal on the client's account |
 | F02 | Photos on R2 | Upload with type sniffing (jpeg/png/webp, ≤10 MB), SHA-256, private bucket, 5-minute HMAC-signed URLs, access via DM/room membership, owner delete. **Migration tool** `tools/migrate-photos.mjs` (see "F02 photo migration") + `legacy_media_refs` (migration 0005) | tests; `tools/test-migrate-photos.mjs` (24 checks on a synthetic copy of the existing schema, incl. upload to local R2/D1) | The client's D1 export; R2 enabled on the target account; run on staging, then the client's approval for production; linking `legacy_media_refs` to new rows once F01 maps members and posts |
 | F03 | <1 s realtime | Durable Object per channel (`room:`, `dm:`, `status`); single-use 30 s tickets; idempotent sends (`requestId`); `afterSeq` backfill after reconnect; socket revocation (4003) on kick/leave/block/close | tests (two clients in Miniflare; delivery well under 1 s locally) | **Two physical phones on staging**: measure latency, reconnect and offline behaviour; Flutter client subscription |
 | F04 | Anonymous 1:1 DM | Request (from a profile or a post) → accept/reject/cancel; one conversation per pair (idempotent accept); no messages before acceptance; third-party 403; photos; read receipts; block cuts sockets and sending both ways; reports | tests (A→B→talk→C denied→block→logout scenario) | Moderation workflow for reports; two-device check |
@@ -157,3 +157,35 @@ node --no-warnings tools/migrate-photos.mjs --source export.sql --work ./photo-r
   file and reports missing files, checksum errors and broken references (F02 acceptance).
 - `--upload` only accepts `local` or `staging`. It is resumable (`uploaded-<target>.txt`).
 - Rehearsal on synthetic data: `node --no-warnings tools/test-migrate-photos.mjs [--upload-local]`.
+
+## F01 member migration
+
+`tools/migrate-members.mjs` turns an export of the existing service's database into SQL for this
+schema. It never writes to the source and never connects to anything; applying the SQL is a separate
+step, done on the **client's** Cloudflare account (agreed 2026-11-27).
+
+```bash
+npx wrangler d1 export <client db> --remote --output export.sql          # on the client's account
+node --no-warnings tools/migrate-photos.mjs  --source export.sql --work ./run --verify
+node --no-warnings tools/migrate-members.mjs --source export.sql --work ./run --verify
+npx wrangler d1 execute <new db> --remote --file ./run/media-import.sql   # photos first
+npx wrangler d1 execute <new db> --remote --file ./run/import.sql
+```
+
+- **What is carried over:** members (nickname, withdrawn), Google/Naver links, shops → stores and a
+  store room each, the latest live status per shop, saved shops, posts, comments and likes, 오픈톡
+  rooms with members and messages. Ids stay the same, so old links and sample checks work.
+- **Mappings** (reported in `report.json` for checking): 업종 하이퍼블릭 → 하이퍼블릭, 쩜오 → 쩜오,
+  텐카페/텐프로/일프로 → 텐 (as the existing app groups them; the original label is kept in
+  `stores.source_industry`); "강남 역삼" → region 강남 + 동네 역삼; 오픈톡 → 익명 오픈톡;
+  banned → blocked. Board categories are kept as they are until the board list is decided.
+- **Nothing is guessed or dropped silently:** a broken date, a missing author or "초중 20 미만" is
+  left empty or listed with the reason; unlisted shops are kept without a room (hidden); hidden posts
+  and comments come over hidden; every source table that is not carried over is listed with its row
+  count (`sourceTables.notCarriedWithRows`) so each one gets a decision.
+- **Checks (`--verify`):** builds this schema from `migrations/`, applies the SQL twice, and confirms
+  row counts, foreign keys, 20 sample ids per entity, and that the second run changed nothing.
+- **Not carried over yet:** places (needs the category list and hours format), the 용어 dictionary,
+  groups, member levels and staff roles, attendance, jobs, market, and the rest listed in the report.
+  Passwords and sessions are not copied; members sign in again with the real login (F01).
+- Rehearsal on synthetic data: `node --no-warnings tools/test-migrate-members.mjs`.
