@@ -216,6 +216,31 @@
   /* ── Rooms / live status ─────────────────────────────── */
   .card.room-card { display: flex; gap: 14px; align-items: flex-start; padding: 14px 12px 14px 14px; background: linear-gradient(165deg, #231f2c 0%, var(--surface) 70%); border-color: #2f2a3a; border-radius: 18px; }
   .venue-body { flex: 1; min-width: 0; }
+  /* 초이스톡 opens like a shop: two photo cards per row on phones, three on wider screens. */
+  .shop-view { gap: 10px; padding-top: 10px; }
+  .shop-head .view-title { font-size: 22px; }
+  .shop-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px 10px; }
+  .shop-grid > :not(.room-card) { grid-column: 1 / -1; }
+  @media (min-width: 600px) { .shop-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 16px 12px; } }
+  .card.room-card.product { display: flex; flex-direction: column; align-items: stretch; gap: 0; padding: 0; overflow: hidden; border-radius: 16px; background: var(--surface); }
+  .pc-photo { position: relative; aspect-ratio: 1 / 1; overflow: hidden; background: var(--surface-2); }
+  .pc-photo .venue-thumb { position: absolute; inset: 0; width: auto; height: auto; border-radius: 0; box-shadow: none; }
+  .pc-photo .venue-thumb b { font-size: 44px; }
+  .pc-photo .venue-thumb span { display: none; }
+  .pc-photo img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; animation: fadeIn .3s ease-out; }
+  .pc-photo::after { content: ''; position: absolute; inset: 0; background: linear-gradient(180deg, rgba(0,0,0,.28) 0%, transparent 30%, transparent 70%, rgba(0,0,0,.25) 100%); pointer-events: none; }
+  .pc-tag { position: absolute; z-index: 1; left: 8px; top: 8px; padding: 3px 9px; border-radius: 999px; font-size: 12px; font-weight: 700; color: #fff; background: rgba(10,8,14,.55); backdrop-filter: blur(6px); }
+  .pc-heart { position: absolute; z-index: 1; right: 2px; top: 2px; }
+  .pc-heart .icon-btn { width: 44px; height: 44px; color: #fff; filter: drop-shadow(0 1px 3px rgba(0,0,0,.6)); }
+  .pc-body { padding: 10px 10px 12px; display: flex; flex-direction: column; gap: 6px; min-width: 0; }
+  .product .venue-name { font-size: 15px; line-height: 1.35; }
+  .product .room-meta { margin-top: 0; font-size: 12px; gap: 4px 8px; }
+  .product .room-meta .badge { font-size: 11px; padding: 1px 7px; }
+  .product .stats.compact { margin-top: 2px; }
+  .product .stats-line { font-size: 12px; gap: 4px 8px; }
+  .product .sstat.key { padding: 3px 9px; font-size: 13px; }
+  .product .room-foot { margin-top: 0; }
+  @keyframes fadeIn { from { opacity: 0; } }
   .venue-thumb { flex-shrink: 0; width: 76px; height: 76px; border-radius: 16px; overflow: hidden; display: flex; flex-direction: column; background: linear-gradient(150deg, color-mix(in srgb, var(--tone) 85%, #fff 15%), var(--tone)); box-shadow: inset 0 0 0 1px rgba(255,255,255,.08); }
   .venue-thumb b { flex: 1; display: grid; place-items: center; font-size: 30px; font-weight: 800; color: #fff; }
   .venue-thumb span { padding: 4px 2px; text-align: center; font-size: 11px; font-weight: 700; color: #fff; background: rgba(0,0,0,.32); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
@@ -268,6 +293,18 @@
 
   .room-layout { position: relative; flex: 1; min-height: 0; display: flex; flex-direction: column; }
   .view-title.clamp2, .clamp2 { word-break: keep-all; overflow-wrap: anywhere; display: -webkit-box; -webkit-line-clamp: 2; line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; line-height: 1.3; }
+  .room-cover { position: relative; aspect-ratio: 16 / 9; max-height: 240px; width: 100%; border-radius: 18px; overflow: hidden; margin-bottom: 10px; background: var(--surface-2); }
+  .room-cover.slim { aspect-ratio: auto; height: 96px; } /* in the chat, keep room for messages */
+  .room-cover .venue-thumb { position: absolute; inset: 0; width: auto; height: auto; border-radius: 0; }
+  .room-cover .venue-thumb span { display: none; }
+  .room-cover img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; animation: fadeIn .3s ease-out; }
+  .room-cover .cover-btn { position: absolute; right: 10px; bottom: 10px; min-height: 40px; background: rgba(10,8,14,.6); border-color: rgba(255,255,255,.18); backdrop-filter: blur(6px); }
+  .filter-scroll { display: flex; align-items: center; gap: 6px; overflow-x: auto; scrollbar-width: none; margin: 0 -16px; padding: 2px 16px; }
+  .filter-scroll::-webkit-scrollbar { display: none; }
+  .filter-scroll > .chips { overflow: visible; flex-shrink: 0; padding: 0; }
+  .filter-scroll > .chip { flex-shrink: 0; }
+  .filter-sep { flex-shrink: 0; width: 1px; height: 22px; background: var(--line); margin: 0 2px; }
+  @media (max-width: 360px) { .filter-scroll { margin: 0 -12px; padding: 2px 12px; } }
   .room-hero { background: var(--plum); border: 1px solid var(--plum-line); border-radius: 18px; padding: 14px 14px 12px; }
   .room-hero .stats { margin-top: 12px; }
   .tool-bar { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 8px; margin-top: 8px; }
@@ -652,6 +689,9 @@ const EN = {
  "가격표": "Prices",
  "용어": "Terms",
  "담당 찾기": "Find staff",
+ "대표 사진 바꾸기": "Change cover photo",
+ "대표 사진을 바꿨어요.": "Cover photo updated.",
+ "가게 사진": "Venue photo",
  "빈방 기록": "Vacancy log",
  "종료된 방이에요. 대화 기록은 열람할 수 없어요.": "This room has closed. Its chat history isn't available.",
  "참여가 승인되었어요.": "You've been approved to join.",
@@ -1733,6 +1773,29 @@ function venueThumb(r) {
     h('b', null, [...word][0]), h('span', null, (r.region && REGIONS[r.region]) || ROOM_KIND[r.kind] || ''));
 }
 
+/** 초이스톡 grid card, like a shop product: venue photo (or colour tile), heart on the photo, then details. */
+function productCard(r, stats, fresh, open) {
+  const isStore = r.kind === 'store';
+  const people = `${r.activeCount}${r.capacity ? '/' + r.capacity : ''}`;
+  const photo = h('div', { class: 'pc-photo' },
+    venueThumb(r),
+    r.coverUrl && h('img', { src: r.coverUrl, alt: '', loading: 'lazy', decoding: 'async', onerror: e => e.target.remove() }),
+    r.region && h('span', { class: 'pc-tag' }, REGIONS[r.region]),
+    h('div', { class: 'pc-heart' }, heartBtn(r.saved, saveToggle('room', r.id))));
+  return h('div', { class: 'card click room-card product', role: 'button', tabindex: 0, 'aria-label': r.title, onclick: open, onkeydown: e => e.target === e.currentTarget && e.key === 'Enter' && open() },
+    photo,
+    h('div', { class: 'pc-body' },
+      h('div', { class: 'venue-name' }, r.title),
+      h('div', { class: 'room-meta' },
+        h('span', { class: 'meta-i', 'aria-label': t('참여 {n}명', { n: people }) }, icon('users'), people),
+        h('span', { class: 'badge ' + (r.joinPolicy === 'approval' ? 'primary' : 'ok') }, r.joinPolicy === 'approval' ? t('승인제') : t('바로 참여')),
+        (!isStore || r.anonymous) && h('span', { class: 'badge primary' }, r.anonymous ? t('익명 오픈톡') : ROOM_KIND[r.kind]),
+        r.status === 'closed' && h('span', { class: 'badge' }, t('종료')),
+        r.myState !== 'none' && stateBadge(r.myState)),
+      stats?.el,
+      isStore && h('div', { class: 'room-foot' }, fresh)));
+}
+
 function viewRooms(mode) {
   const isDaily = mode === 'daily';
   const DEFAULTS = { kind: isDaily ? 'daily' : 'store,general', region: '', q: '', saved: false };
@@ -1753,6 +1816,7 @@ function viewRooms(mode) {
     const fresh = h('span', null, isStore ? freshTag(r.liveStatus) : '');
     cards.set(r.id, { stats, fresh });
     const open = () => push(viewRoom(r.id));
+    if (!isDaily) return productCard(r, stats, fresh, open);
     const meta = [
       h('span', { class: 'meta-i', 'aria-label': t('참여 {n}명', { n: `${r.activeCount}${r.capacity ? '/' + r.capacity : ''}` }) }, icon('users'), `${r.activeCount}${r.capacity ? '/' + r.capacity : ''}`),
       h('span', { class: 'badge ' + (r.joinPolicy === 'approval' ? 'primary' : 'ok') }, r.joinPolicy === 'approval' ? t('승인제') : t('바로 참여'))];
@@ -1847,14 +1911,16 @@ function viewRooms(mode) {
   const stopLive = () => { liveGen++; clearTimeout(failTimer); failTimer = null; live?.close(); live = null; };
   startLive();
 
-  const el = h('div', { class: 'view' },
-    h('div', null,
-      h('div', { class: 'eyebrow' }, isDaily ? t('주제별 채팅') : t('실시간 가게 현황')),
-      h('div', { class: 'between' }, h('h1', { class: 'view-title' }, isDaily ? t('데일리톡') : t('초이스톡')), !isDaily && badge.el)),
+  if (!isDaily) list.listEl.classList.add('shop-grid');
+  const el = h('div', { class: 'view' + (isDaily ? '' : ' shop-view') },
+    isDaily
+      ? h('div', null, h('div', { class: 'eyebrow' }, t('주제별 채팅')), h('h1', { class: 'view-title' }, t('데일리톡')))
+      : h('div', { class: 'between shop-head' }, h('h1', { class: 'view-title' }, t('초이스톡')), badge.el),
     isDaily && h('p', { class: 'view-sub' }, t('주제별로 모여 가볍게 이야기해요.')),
     h('div', { class: 'sticky-search' }, search.el),
-    kindChips,
-    h('div', { class: 'row' }, h('div', { class: 'grow' }, regionChips), savedChip),
+    isDaily
+      ? h('div', { class: 'row' }, h('div', { class: 'grow' }, regionChips), savedChip)
+      : h('div', { class: 'filter-scroll' }, kindChips, h('span', { class: 'filter-sep', 'aria-hidden': 'true' }), regionChips, savedChip),
     list.el);
   reloadList();
   return {
@@ -1897,7 +1963,13 @@ function viewRoom(roomId) {
       h('button', { class: 'btn', onclick: () => toolsSheet('prices') }, icon('tag'), t('가격표')),
       h('button', { class: 'btn', onclick: () => toolsSheet('terms') }, icon('book'), t('용어')),
       h('button', { class: 'btn', onclick: () => toolsSheet('vacancy') }, icon('door'), t('빈방 기록')));
+    const showCover = room.kind === 'store' && (room.canEditCover || (room.coverUrl && room.myState !== 'active'));
+    const coverBtn = room.canEditCover && h('button', { class: 'btn sm cover-btn', onclick: () => changeCover(coverBtn) }, icon('image'), t('대표 사진 바꾸기'));
     statusWrap.replaceChildren(
+      showCover ? h('div', { class: 'room-cover' + (room.myState === 'active' ? ' slim' : '') },
+        venueThumb(room),
+        room.coverUrl && h('img', { src: room.coverUrl, alt: t('가게 사진'), decoding: 'async', onerror: e => e.target.remove() }),
+        coverBtn) : '',
       h('div', { class: 'room-hero' },
         h('div', { class: 'between' },
           h('span', { class: 'eyebrow' }, [room.region && REGIONS[room.region], room.anonymous ? t('익명 오픈톡') : ROOM_KIND[room.kind]].filter(Boolean).join(' · ')),
@@ -1908,6 +1980,18 @@ function viewRoom(roomId) {
       tools ? h('div', { class: 'section-label', style: 'margin-top:14px' }, t('가게방 안내')) : '',
       tools || '');
 
+    async function changeCover(btn) {
+      const file = await pickImage();
+      if (!file) return;
+      btn.disabled = true;
+      try {
+        const m = await uploadImage(file);
+        await api('PUT', `/rooms/${room.id}/cover`, { mediaId: m.id });
+        toast(t('대표 사진을 바꿨어요.'), 'ok');
+        load();
+      } catch (e) { if (!(e instanceof Stale)) toast(errText(e), 'error'); }
+      btn.disabled = false;
+    }
     if (room.status === 'closed') {
       body.replaceChildren(h('div', { class: 'notice-bar', style: 'margin-top:8px' }, t('종료된 방이에요. 대화 기록은 열람할 수 없어요.')));
       return;

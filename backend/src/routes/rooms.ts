@@ -17,6 +17,7 @@ import {
 } from '../lib/http';
 import { assertOwnMedia, insertMessage, sendSchema, toMessage } from '../lib/messages';
 import { aliasFor } from '../lib/alias';
+import { signedMediaUrl } from '../lib/media-url';
 import { notify } from '../lib/notify';
 import { broadcast, hubFor, revoke, type Channel } from '../lib/realtime';
 
@@ -132,7 +133,9 @@ rooms.get('/', async c => {
     `SELECT r.*, m.state AS my_state,
             (SELECT COUNT(*) FROM room_members a WHERE a.room_id = r.id AND a.state = 'active') AS active_count,
             s.choice, s.entry, s.waiting, s.vacancy, s.updated_at AS status_updated_at,
-            EXISTS (SELECT 1 FROM saved_items si WHERE si.user_id = ? AND si.target_type = 'room' AND si.target_id = r.id) AS saved
+            EXISTS (SELECT 1 FROM saved_items si WHERE si.user_id = ? AND si.target_type = 'room' AND si.target_id = r.id) AS saved,
+            (SELECT md.id FROM stores st JOIN media md ON md.id = st.cover_media_id AND md.deleted_at IS NULL
+              WHERE st.id = r.store_id) AS cover_id
        FROM rooms r
        LEFT JOIN room_members m ON m.room_id = r.id AND m.user_id = ?
        LEFT JOIN room_status s ON s.room_id = r.id
@@ -143,8 +146,11 @@ rooms.get('/', async c => {
     .all<RoomRow & Record<string, number | string | null>>();
   const page = results.slice(0, limit);
   const last = page[page.length - 1];
+  const covers = await Promise.all(
+    page.map(r => (r.cover_id ? signedMediaUrl(c.env, r.cover_id as string, c.req.url).then(u => u.url) : null))
+  );
   return c.json({
-    items: page.map(r => ({
+    items: page.map((r, i) => ({
       id: r.id,
       kind: r.kind,
       title: r.title,
@@ -156,6 +162,7 @@ rooms.get('/', async c => {
       activeCount: r.active_count,
       myState: r.my_state ?? 'none',
       saved: !!r.saved,
+      coverUrl: covers[i],
       liveStatus:
         r.status_updated_at == null
           ? null
@@ -190,8 +197,30 @@ rooms.get('/:id', async c => {
     myState: me?.state ?? 'none',
     myRole: me?.role ?? null,
     canManage: await isManager(c.env, room, c.get('user')),
+    canEditCover: room.kind === 'store' && (await isStoreOperator(c.env, room, c.get('user'))),
+    coverUrl: await coverUrl(c.env, room, c.req.url),
     liveStatus: await loadStatus(c.env, room.id),
   });
+});
+
+async function coverUrl(env: Env, room: RoomRow, base: string) {
+  if (!room.store_id) return null;
+  const r = await env.DB.prepare(
+    `SELECT md.id FROM stores st JOIN media md ON md.id = st.cover_media_id AND md.deleted_at IS NULL WHERE st.id = ?`
+  )
+    .bind(room.store_id)
+    .first<{ id: string }>();
+  return r ? (await signedMediaUrl(env, r.id, base)).url : null;
+}
+
+/** Store operator sets (or clears) the venue's cover photo for the 초이스톡 list. */
+rooms.put('/:id/cover', async c => {
+  const room = await getRoom(c.env, c.req.param('id'));
+  const storeId = await requireOperator(c.env, room, c.get('user'));
+  const { mediaId } = await readBody(c, z.object({ mediaId: z.string().min(1).max(64).nullable() }));
+  if (mediaId) await assertOwnMedia(c.env, mediaId, c.get('user').id);
+  await c.env.DB.prepare('UPDATE stores SET cover_media_id = ? WHERE id = ?').bind(mediaId, storeId).run();
+  return c.json({ coverUrl: await coverUrl(c.env, room, c.req.url) });
 });
 
 // ── Membership ─────────────────────────────────────────────────────────

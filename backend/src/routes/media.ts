@@ -1,7 +1,8 @@
 import { Hono } from 'hono';
 import type { AppEnv, Env } from '../env';
 import { requireAuth } from '../lib/auth';
-import { hmacHex, safeEqual, sha256Hex } from '../lib/crypto';
+import { safeEqual, sha256Hex } from '../lib/crypto';
+import { mediaSignature, signedMediaUrl } from '../lib/media-url';
 import { ApiError, forbidden, iso, newId, notFound } from '../lib/http';
 
 /**
@@ -16,7 +17,6 @@ import { ApiError, forbidden, iso, newId, notFound } from '../lib/http';
 export const media = new Hono<AppEnv>();
 
 const MAX_BYTES = 10 * 1024 * 1024;
-const URL_TTL_S = 300;
 
 const SNIFF: Record<string, (b: Uint8Array) => boolean> = {
   'image/jpeg': b => b[0] === 0xff && b[1] === 0xd8 && b[2] === 0xff,
@@ -70,7 +70,7 @@ async function loadMedia(env: Env, id: string) {
   return m;
 }
 
-/** Owner, or someone who can see a message that references the media. */
+/** Owner, someone who can see a message that references the media, or anyone for a store cover. */
 async function canView(env: Env, m: MediaRow, userId: string): Promise<boolean> {
   if (m.owner_id === userId) return true;
   const r = await env.DB.prepare(
@@ -80,6 +80,8 @@ async function canView(env: Env, m: MediaRow, userId: string): Promise<boolean> 
      SELECT 1 FROM room_messages rm JOIN room_members mem ON mem.room_id = rm.room_id
        JOIN rooms r ON r.id = rm.room_id
       WHERE rm.media_id = ?1 AND mem.user_id = ?2 AND mem.state = 'active' AND r.status = 'open'
+     UNION ALL
+     SELECT 1 FROM stores WHERE cover_media_id = ?1
      LIMIT 1`
   )
     .bind(m.id, userId)
@@ -87,17 +89,12 @@ async function canView(env: Env, m: MediaRow, userId: string): Promise<boolean> 
   return r !== null;
 }
 
-const signature = (env: Env, id: string, exp: number) => hmacHex(env.MEDIA_SIGNING_KEY, `media:${id}:${exp}`);
 
 media.get('/:id/url', requireAuth, async c => {
   const m = await loadMedia(c.env, c.req.param('id'));
   if (!(await canView(c.env, m, c.get('user').id))) throw forbidden();
-  const exp = Math.floor(Date.now() / 1000) + URL_TTL_S;
-  const sig = await signature(c.env, m.id, exp);
-  const url = new URL(`/media/${m.id}/raw`, c.req.url);
-  url.searchParams.set('exp', String(exp));
-  url.searchParams.set('sig', sig);
-  return c.json({ url: url.toString(), expiresAt: iso(exp * 1000) });
+  const { url, exp } = await signedMediaUrl(c.env, m.id, c.req.url);
+  return c.json({ url, expiresAt: iso(exp * 1000) });
 });
 
 /** No Authorization header (usable from <img>); the signed query string is the credential. */
@@ -106,7 +103,7 @@ media.get('/:id/raw', async c => {
   const exp = Number(c.req.query('exp'));
   const sig = c.req.query('sig') ?? '';
   if (!Number.isInteger(exp) || exp < Math.floor(Date.now() / 1000)) throw forbidden('url_expired');
-  if (!safeEqual(sig, await signature(c.env, id, exp))) throw forbidden('bad_signature');
+  if (!safeEqual(sig, await mediaSignature(c.env, id, exp))) throw forbidden('bad_signature');
   const m = await loadMedia(c.env, id);
   const obj = await c.env.MEDIA.get(m.r2_key);
   if (!obj) throw notFound('media');
