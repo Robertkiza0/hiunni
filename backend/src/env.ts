@@ -11,6 +11,8 @@ export interface Env {
   ALLOWED_ORIGINS?: string;
   /** HMAC key for signed media URLs (secret). */
   MEDIA_SIGNING_KEY: string;
+  /** Firebase service-account JSON for push (secret, F05). Unset → pushes stay queued. */
+  FCM_SERVICE_ACCOUNT?: string;
 }
 
 export type Role = 'member' | 'operator' | 'admin';

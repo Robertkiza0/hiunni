@@ -22,6 +22,9 @@
     "bindings": [{ "name": "HUB", "class_name": "ChannelHub" }]
   },
   "migrations": [{ "tag": "v1", "new_sqlite_classes": ["ChannelHub"] }],
+  // F05: deliver queued pushes and retries every minute (src/lib/push-send.ts).
+  // Sending needs the secret FCM_SERVICE_ACCOUNT; without it the run does nothing.
+  "triggers": { "crons": ["* * * * *"] },
   "vars": {
     "ENVIRONMENT": "development",
     "DEV_LOGIN_ENABLED": "true",
@@ -46,6 +49,7 @@
       "durable_objects": {
         "bindings": [{ "name": "HUB", "class_name": "ChannelHub" }]
       },
+      "triggers": { "crons": ["* * * * *"] },
       "vars": {
         "ENVIRONMENT": "development",
         "DEV_LOGIN_ENABLED": "true",

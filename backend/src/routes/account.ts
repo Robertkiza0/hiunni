@@ -3,8 +3,9 @@ import { z } from 'zod';
 import type { AppEnv } from '../env';
 import { requireAuth } from '../lib/auth';
 import { randomToken, sha256Hex } from '../lib/crypto';
-import { ApiError, decodeCursor, encodeCursor, iso, newId, notFound, parseLimit, readBody } from '../lib/http';
+import { ApiError, decodeCursor, encodeCursor, forbidden, iso, newId, notFound, parseLimit, readBody } from '../lib/http';
 import { DEFAULT_PREFS, loadPrefs } from '../lib/notify';
+import { fcmConfig } from '../lib/push-send';
 import { formatHm, parseHm } from '../lib/time';
 
 const SESSION_TTL_MS = 30 * 86_400_000;
@@ -201,6 +202,21 @@ const prefsOut = (p: typeof DEFAULT_PREFS) => ({
   saved: p.saved,
   dnd: p.dndStart == null || p.dndEnd == null ? null : { start: formatHm(p.dndStart), end: formatHm(p.dndEnd) },
   hideContent: p.hideContent,
+});
+
+/** Admin: delivery state of the push queue (F05 evidence). No titles, bodies or tokens. */
+push.get('/outbox', async c => {
+  if (c.get('user').role !== 'admin') throw forbidden('admin_only');
+  const { results: counts } = await c.env.DB.prepare('SELECT status, COUNT(*) AS n FROM push_outbox GROUP BY status').all<{ status: string; n: number }>();
+  const { results: recent } = await c.env.DB.prepare(
+    `SELECT id, platform, status, attempts, last_error AS lastError, created_at AS createdAt, sent_at AS sentAt
+     FROM push_outbox ORDER BY created_at DESC LIMIT 20`
+  ).all();
+  return c.json({
+    senderConfigured: fcmConfig(c.env) != null,
+    counts: Object.fromEntries(['pending', 'sent', 'failed'].map(s => [s, counts.find(r => r.status === s)?.n ?? 0])),
+    recent,
+  });
 });
 
 push.get('/preferences', async c => c.json(prefsOut(await loadPrefs(c.env, c.get('user').id))));

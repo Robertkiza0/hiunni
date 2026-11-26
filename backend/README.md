@@ -43,7 +43,7 @@ curl -X POST localhost:8787/auth/dev-login -H 'Content-Type: application/json' -
 | F02 | Photos on R2 | Upload with type sniffing (jpeg/png/webp, ≤10 MB), SHA-256, private bucket, 5-minute HMAC-signed URLs, access via DM/room membership, owner delete | tests (403 unauthorised/tampered/expired, byte hash round-trip) | Migrating existing DB photos to R2 with before/after file counts and hashes; mobile picker/upload on devices |
 | F03 | <1 s realtime | Durable Object per channel (`room:`, `dm:`, `status`); single-use 30 s tickets; idempotent sends (`requestId`); `afterSeq` backfill after reconnect; socket revocation (4003) on kick/leave/block/close | tests (two clients in Miniflare; delivery well under 1 s locally) | **Two physical phones on staging**: measure latency, reconnect and offline behaviour; Flutter client subscription |
 | F04 | Anonymous 1:1 DM | Request (from a profile or a post) → accept/reject/cancel; one conversation per pair (idempotent accept); no messages before acceptance; third-party 403; photos; read receipts; block cuts sockets and sending both ways; reports | tests (A→B→talk→C denied→block→logout scenario) | Moderation workflow for reports; two-device check |
-| F05 | Push | Device token register/move/delete (removed on logout and withdrawal); per-type toggles (comment/dm/saved); KST DND window; hide-content; secret comments and DM bodies never in payloads; inbox + read | tests | **Actual FCM/APNs delivery is not implemented.** Rows wait in `push_outbox` with status `pending`; a sender needs Firebase/APNs credentials. Real-device receipt in foreground, background and killed states |
+| F05 | Push | Device token register/move/delete (removed on logout and withdrawal); per-type toggles (comment/dm/saved); KST DND window; hide-content; secret comments and DM bodies never in payloads; inbox + read. **Sender** (`src/lib/push-send.ts`, migration 0004): FCM HTTP v1 for Android and iPhone, sent right after the write and by a 1-minute cron; retries with backoff (5 tries, `Retry-After`), drops pushes older than 24 h, forgets uninstalled tokens, pauses on bad credentials without using up tries, never sends a row twice; admin status at `GET /push/outbox` | tests (signed service-account JWT checked, fake FCM) | The client's Firebase project: `FCM_SERVICE_ACCOUNT` secret, `google-services.json`, `GoogleService-Info.plist` and the APNs key uploaded to Firebase (see "F05 setup"). Real-device receipt in foreground, background and killed states |
 | F06 | Store release | — (out of scope for the backend) | — | Signing, Face ID/lock, deep links, TestFlight/Play review |
 | F07 | Store-room tools | Prices (`amount: null` = 문의, distinct from 0), terms, vacancy log → live status broadcast; store-operator-only edits; data scoped per store | tests | Real store IDs and roles from production |
 | F08 | Staff last seen | Last authenticated activity (written at most once a minute); shown only with the staff member's opt-in (`PATCH /me/privacy`); hidden if blocked either way or withdrawn | tests | Client sign-off on the definition and timezone of "last seen" and on the exposure policy |
@@ -59,7 +59,7 @@ staging, on devices, or by the client.
 |---|---|
 | ③ 채팅방·오픈톡·가게 방·가게 숫자 즉시 반영 (웹소켓) | Done locally. Topic rooms (데일리톡), **익명 오픈톡** with per-room automatic nicknames (migration 0002), store rooms, and live counters all use WebSocket. |
 | ④ 글이나 댓글에서 신청 → 수락 후 대화, 사진·읽음·신고·차단 | Done (requests from posts and from comments). |
-| ⑤ 댓글·1:1·**찜한 가게 소식** 알림 + 종류별·방해 금지·내용 숨기기 | Inbox and settings are done. Saved-store updates notify savers, throttled to once per 10 minutes per store. **Sending to phones (FCM/APNs) is not done.** |
+| ⑤ 댓글·1:1·**찜한 가게 소식** 알림 + 종류별·방해 금지·내용 숨기기 | Inbox and settings are done. Saved-store updates notify savers, throttled to once per 10 minutes per store. The phone sender (FCM) is written and tested against a fake FCM; **it sends nothing until the client's Firebase credentials are set.** |
 | ⑦ 가게 방 오른쪽 버튼 | Done (가격표, 용어설명, 담당 찾기, 빈방 기록). |
 | ⑧ 초이스톡 실장 카드 + 최근 접속 | Done (opt-in). |
 | ⑨ 비밀 댓글, 등록순·공감순·최신순, 글에서 1:1 | Done. |
@@ -87,7 +87,7 @@ evaluated in KST.
 | Board | `GET /posts?board=&sort=latest\|oldest\|popular` · `GET /posts/notices?board=` · `POST /posts` · `GET/DELETE /posts/:id` · `PUT/DELETE /posts/:id/like` · `GET/POST /posts/:id/comments` · `PUT/DELETE /comments/:id/like` · `DELETE /comments/:id` |
 | Places | `GET /places?category=&region=&q=&filter=lateNight,allDay,weekend,openNow&date=YYYY-MM-DD&saved=true` · `GET /places/:id` · `PUT /places/:id/hours` (operator) |
 | Media | `POST /media` (raw body) · `GET /media/:id/url` · `GET /media/:id/raw?exp=&sig=` · `DELETE /media/:id` |
-| Push | `PUT/DELETE /push/devices` · `GET/PUT /push/preferences` · `GET /notifications` · `POST /notifications/read` |
+| Push | `PUT/DELETE /push/devices` · `GET/PUT /push/preferences` · `GET /push/outbox` (admin) · `GET /notifications` · `POST /notifications/read` |
 
 ## Design notes
 
@@ -108,7 +108,29 @@ evaluated in KST.
 1. Get the production source and reconcile this schema with it, table by table. Wherever the real API
    contract differs, the real one wins.
 2. Replace `/auth/dev-login` with the real login, and turn `DEV_LOGIN_ENABLED` off outside development.
-3. Implement the FCM HTTP v1 and APNs senders that drain `push_outbox`, using credentials kept in
-   Workers secrets.
+3. Turn on push with the client's Firebase project (below).
 4. Create D1, R2 and the Durable Object on the client's Cloudflare account, replace the placeholder
    `database_id`, and set `MEDIA_SIGNING_KEY` with `wrangler secret put`.
+
+## F05 setup: turning on phone push
+
+The sender is in place; it needs the client's Firebase project. Nothing below goes in the repo.
+
+1. **Firebase project** (client's Google account): add an Android app `app.hiunni.mobile` and an iOS
+   app `app.hiunni.mobile`.
+2. **Server:** Firebase console → Project settings → Service accounts → *Generate new private key*.
+   Store the whole JSON as a Worker secret, never in a file in the repo:
+   `npx wrangler secret put FCM_SERVICE_ACCOUNT --env staging` (paste the JSON).
+   `GET /push/outbox` as an admin then shows `senderConfigured: true`.
+3. **Android:** put `google-services.json` in `capacitor/android/app/`, build with `HIUNNI_PUSH=1`.
+4. **iPhone:** upload the APNs key (.p8, from the client's Apple account) in Firebase → Cloud
+   Messaging. In Xcode add the package `https://github.com/firebase/firebase-ios-sdk` (product
+   *FirebaseMessaging*) to the App target, add `GoogleService-Info.plist` to the App folder, enable
+   the Push Notifications capability, build with `HIUNNI_PUSH=1`. `AppDelegate.swift` already swaps
+   the APNs token for an FCM token once Firebase is present (and builds unchanged without it).
+   Why FCM for iPhone too: Apple's push service only speaks HTTP/2, which a Worker's `fetch` does not
+   offer, so the Worker cannot call Apple directly.
+5. **Check (Peter's F05 test):** on each phone, with the app in the foreground, in the background and
+   closed, get a comment, an accepted DM and a saved-store update; tap each and land on the right
+   screen; turn a type off and confirm nothing arrives. `GET /push/outbox` shows each row `sent`, or
+   the reason it failed.

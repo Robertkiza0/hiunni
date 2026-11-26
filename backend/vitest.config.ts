@@ -14,5 +14,6 @@ export default defineConfig({
       },
     })),
   ],
-  test: { setupFiles: ['./test/apply-migrations.ts'] },
+  // Some scenario tests make 100+ requests; 5 s is too tight on a busy machine.
+  test: { setupFiles: ['./test/apply-migrations.ts'], testTimeout: 20_000 },
 });

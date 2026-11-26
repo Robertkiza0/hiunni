@@ -1,5 +1,12 @@
 import UIKit
 import Capacitor
+// Push (F05) goes through Firebase on both platforms, because the server sends with FCM.
+// Firebase is optional at compile time: until the FirebaseMessaging package and the client's
+// GoogleService-Info.plist are added in Xcode, this file builds and behaves exactly as before.
+#if canImport(FirebaseCore) && canImport(FirebaseMessaging)
+import FirebaseCore
+import FirebaseMessaging
+#endif
 
 @UIApplicationMain
 class AppDelegate: UIResponder, UIApplicationDelegate {
@@ -7,7 +14,11 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
     var window: UIWindow?
 
     func application(_ application: UIApplication, didFinishLaunchingWithOptions launchOptions: [UIApplication.LaunchOptionsKey: Any]?) -> Bool {
-        // Override point for customization after application launch.
+        #if canImport(FirebaseCore) && canImport(FirebaseMessaging)
+        if FirebaseApp.app() == nil, Bundle.main.path(forResource: "GoogleService-Info", ofType: "plist") != nil {
+            FirebaseApp.configure()
+        }
+        #endif
         return true
     }
 
@@ -29,8 +40,23 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
         // Restart any tasks that were paused (or not yet started) while the application was inactive. If the application was previously in the background, optionally refresh the user interface.
     }
 
-    // Hand the APNs device token to @capacitor/push-notifications (의뢰서 ⑤).
+    // Hand the device token to @capacitor/push-notifications (의뢰서 ⑤). With Firebase configured,
+    // the APNs token is exchanged for an FCM token (the plugin accepts either a Data or a String).
     func application(_ application: UIApplication, didRegisterForRemoteNotificationsWithDeviceToken deviceToken: Data) {
+        #if canImport(FirebaseCore) && canImport(FirebaseMessaging)
+        if FirebaseApp.app() != nil {
+            Messaging.messaging().apnsToken = deviceToken
+            Messaging.messaging().token { token, error in
+                if let token = token {
+                    NotificationCenter.default.post(name: .capacitorDidRegisterForRemoteNotifications, object: token)
+                } else {
+                    NotificationCenter.default.post(name: .capacitorDidFailToRegisterForRemoteNotifications,
+                                                    object: error ?? NSError(domain: "FCM", code: -1))
+                }
+            }
+            return
+        }
+        #endif
         NotificationCenter.default.post(name: .capacitorDidRegisterForRemoteNotifications, object: deviceToken)
     }
 
