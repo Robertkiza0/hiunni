@@ -80,7 +80,7 @@
   .btn { display: inline-flex; align-items: center; justify-content: center; gap: 6px; padding: 10px 16px; border-radius: var(--radius-sm); font-weight: 700; font-size: 14px; background: var(--surface-3); border: 1px solid var(--line); }
   .btn:hover:not(:disabled) { background: var(--line); }
   .btn.primary { background: var(--fill); border-color: transparent; color: #fff; box-shadow: 0 6px 18px rgba(130,94,208,.28); }
-  .btn.primary:hover:not(:disabled) { filter: brightness(1.08); }
+  .btn.primary:hover:not(:disabled) { background: var(--fill); filter: brightness(1.08); }
   .btn.danger { color: var(--danger); }
   .btn.block { width: 100%; padding: 14px; font-size: 15px; }
   .btn.sm { padding: 6px 10px; font-size: 12px; border-radius: 8px; }
@@ -139,8 +139,8 @@
   .intro-title span + span { color: var(--accent); }
   .intro-sub { color: var(--text-2); font-size: 15px; line-height: 1.7; }
   .age-note { font-size: 12px; color: var(--text-3); }
-  #login { background: var(--bg); }
-  .login-card { width: 100%; max-width: 440px; display: flex; flex-direction: column; gap: 18px; }
+  .intro-error:empty { display: none; }
+  .intro-error { width: 100%; text-align: left; }
   /* Logo: the HIUNNI "h" tile + wordmark used on the client's own screens. Swap in the
      original file (SVG/PNG) once the client sends it. */
   .brand { display: flex; align-items: center; gap: 10px; font-weight: 800; font-size: 19px; letter-spacing: -.6px; }
@@ -217,7 +217,6 @@
   .join-art { width: min(160px, 46vw); height: auto; }
   .page-art { display: block; width: min(150px, 42vw); height: auto; margin: 4px auto 6px; }
   .intro-art { display: block; height: min(230px, 30vh); width: auto; margin: 0 auto 14px; animation: artFloat 4s ease-in-out infinite; }
-  .login-art { display: block; width: 140px; height: auto; margin-bottom: 6px; }
   @keyframes artFloat { 50% { transform: translateY(-5px); } }
   @media (prefers-reduced-motion: reduce) { .empty-art, .intro-art { animation: none; } }
   .empty { text-align: center; padding: 36px 16px; color: var(--text-3); font-size: 14px; animation: fadeSlideUp 240ms ease backwards; }
@@ -485,30 +484,9 @@
     <div class="intro-cta">
       <button class="btn primary block" id="intro-start" data-i18n>시작하기</button>
       <p class="age-note" data-i18n>만 19세 이상만 이용할 수 있어요.</p>
+      <div id="intro-error" class="intro-error" role="alert"></div>
     </div>
     <img class="intro-art" src="art/high-five.png" alt="" aria-hidden="true">
-  </div>
-</section>
-
-<!-- ═════════ Login ═════════ -->
-<section id="login" class="screen hidden" aria-label="로그인" data-i18n-aria>
-  <div class="login-card">
-    <div class="between">
-      <div class="brand"><span class="h-mark" aria-hidden="true">h</span><span data-i18n>하이언니</span></div>
-      <div class="row"><button class="btn sm lang-btn" data-lang-toggle></button><button class="btn sm" id="login-back" data-i18n>처음으로</button></div>
-    </div>
-    <div>
-      <img class="login-art" src="art/wave.png" alt="" aria-hidden="true">
-      <h1 style="font-size:26px;font-weight:900;line-height:1.35" data-i18n>다시 만나 반가워요.</h1>
-      <p class="muted small" style="margin-top:6px" data-i18n>휴대폰 본인인증 로그인은 아직 서버에 연결되지 않았습니다.</p>
-    </div>
-    <div class="dev-banner" data-i18n-html="devBanner">
-      <b>개발 환경 · 합성 데이터</b><br>
-      아래 합성 계정으로만 로그인할 수 있어요. 실제 회원 정보가 아닙니다.
-    </div>
-    <div class="status-line" id="api-status"><span class="led wait"></span><span data-i18n>API 확인 중…</span></div>
-    <div class="account-grid" id="accounts"></div>
-    <div id="login-error"></div>
   </div>
 </section>
 
@@ -955,6 +933,7 @@ function trServer(text) {
 const STATIC_HTML_EN = {
   introSub: 'Talk freely and anonymously.<br>Live store status and stories in one place.',
  "우리끼리, 편하게": "Just us, at ease",
+ "연결 중…": "Connecting…",
   devBanner: '<b>Development · test data</b><br>You can only log in with the test accounts below. They are not real members.',
 };
 function setLang(lang) {
@@ -2660,7 +2639,7 @@ function viewBlocks() {
 }
 
 /* ════════════════════════════════════════════════════════════════════
-   Session: intro → login (dev accounts) → app; logout clears everything
+   Session: intro → 시작하기 (synthetic member) → app; logout clears everything
    ════════════════════════════════════════════════════════════════════ */
 const DEV_ACCOUNTS = [
   ['usera', t('테스트A'), t('일반 회원')], ['userb', t('테스트B'), t('일반 회원')], ['userc', t('테스트C'), t('일반 회원')],
@@ -2668,42 +2647,34 @@ const DEV_ACCOUNTS = [
 ];
 
 function show(id) {
-  for (const s of ['intro', 'login', 'shell']) $('#' + s).classList.toggle('hidden', s !== id);
+  for (const s of ['intro', 'shell']) $('#' + s).classList.toggle('hidden', s !== id);
 }
 
-async function showLogin() {
-  show('login');
-  const status = $('#api-status');
-  const errEl = $('#login-error');
-  errEl.replaceChildren();
-  const btns = DEV_ACCOUNTS.map(([id, nick, role]) => h('button', { class: 'account', disabled: true, onclick: () => login(id) }, h('b', null, nick), h('span', { class: 'faint small' }, role)));
-  $('#accounts').replaceChildren(...btns);
-  status.replaceChildren(h('span', { class: 'led wait' }), h('span', null, t('API 확인 중… ') + API));
-  try {
-    const res = await fetch(API + '/health');
-    const hb = await res.json();
-    status.replaceChildren(h('span', { class: 'led ok' }), h('span', null, t('API 연결됨 · {env} · {api}', { env: hb.environment, api: API })));
-    btns.forEach(b => (b.disabled = false));
-  } catch {
-    status.replaceChildren(h('span', { class: 'led bad' }), h('span', null, t('API에 연결할 수 없어요 · {api}', { api: API })));
-    errEl.replaceChildren(errorBox(new ApiError(0, 'network'), showLogin),
-      h('p', { class: 'faint small', style: 'margin-top:8px' }, t('backend 폴더에서 npm run dev 를 실행한 뒤 http://localhost:8787 로 접속하세요.')));
-  }
+/** Who 시작하기 signs in as: 테스트A, or another synthetic account via ?as=<id> (testers only). */
+function demoUser() {
+  const as = new URLSearchParams(location.search).get('as');
+  return DEV_ACCOUNTS.some(([id]) => id === as) ? as : 'usera';
 }
 
-async function login(userId) {
-  const errEl = $('#login-error');
+/** 시작하기 → straight into the app (no separate login page while phone sign-in is not connected). */
+async function startDemo() {
+  const btn = $('#intro-start'), errEl = $('#intro-error');
   errEl.replaceChildren();
+  btn.disabled = true;
+  btn.textContent = t('연결 중…');
   try {
-    const r = await api('POST', '/auth/dev-login', { userId }, { noAuthRedirect: true });
+    const r = await api('POST', '/auth/dev-login', { userId: demoUser() }, { noAuthRedirect: true });
     startSession(r.token, r.user);
   } catch (e) {
-    if (e instanceof Stale) return;
-    const msg = e.status === 404 && e.code === 'not_found' && !e.message.includes('user')
-      ? t('이 서버는 개발용 로그인이 꺼져 있어요. 실서비스 로그인은 아직 연결되지 않았어요.')
-      : errText(e);
-    errEl.replaceChildren(h('div', { class: 'error-box' }, msg));
+    if (!(e instanceof Stale)) {
+      const msg = e.status === 404 && e.code === 'not_found' && !e.message.includes('user')
+        ? t('이 서버는 개발용 로그인이 꺼져 있어요. 실서비스 로그인은 아직 연결되지 않았어요.')
+        : errText(e);
+      errEl.replaceChildren(h('div', { class: 'error-box' }, h('span', null, msg), h('button', { class: 'btn sm', onclick: startDemo }, t('다시 시도'))));
+    }
   }
+  btn.disabled = false;
+  btn.textContent = t('시작하기');
 }
 
 /* ════════════════════════════════════════════════════════════════════
@@ -2796,7 +2767,7 @@ async function initNative() {
     if (!$('#shell').classList.contains('hidden')) {
       if (S.stack.length > 1) return back();
       if (S.tab !== 'live') return switchTab('live');
-    } else if (!$('#login').classList.contains('hidden')) return show('intro');
+    }
     NATIVE.App.minimizeApp();
   });
   NATIVE.App.addListener('appStateChange', ({ isActive }) => {
@@ -2868,8 +2839,7 @@ async function logout() {
   endSession(t('로그아웃했어요.'));
 }
 
-$('#intro-start').addEventListener('click', showLogin);
-$('#login-back').addEventListener('click', () => show('intro'));
+$('#intro-start').addEventListener('click', startDemo);
 $('#bell').addEventListener('click', () => { if (S.tab !== 'my') switchTab('my'); push(viewNotifications()); });
 $('#me').addEventListener('click', () => switchTab('my'));
 
