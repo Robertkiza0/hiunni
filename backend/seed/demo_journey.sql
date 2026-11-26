@@ -64,3 +64,13 @@ UPDATE stores SET category = 'hyperpublic', area = '삼전동' WHERE id = 'store
 UPDATE stores SET category = 'jjeomo',      area = '신사동' WHERE id = 'store9';
 UPDATE stores SET category = 'ten',         area = '연남동' WHERE id = 'store10';
 UPDATE stores SET category = 'hyperpublic', area = '논현동' WHERE id = 'store11';
+
+-- A second 하이퍼블릭 shop with its own prices and terms, so the first journey can compare two shops
+-- (store1 vs store4: different staff, different prices). Synthetic values.
+INSERT OR IGNORE INTO store_prices (id, store_id, label, amount, note, sort) VALUES
+  ('s4p1', 'store4', '기본',     70000, NULL,         0),
+  ('s4p2', 'store4', '주말',     80000, '금·토 합성', 1),
+  ('s4p3', 'store4', '연장',     NULL,  '문의',        2);
+INSERT OR IGNORE INTO store_terms (id, store_id, term, definition, sort) VALUES
+  ('s4t1', 'store4', '엔트리', '지금 출근해 있는 인원 (합성 예시)', 0),
+  ('s4t2', 'store4', '빈방',   '바로 들어갈 수 있는 방 수 (합성 예시)', 1);
