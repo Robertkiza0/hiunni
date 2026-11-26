@@ -129,12 +129,16 @@
   .intro-card { width: 100%; max-width: 400px; text-align: center; display: flex; flex-direction: column; align-items: center; gap: 18px; }
   /* Start screen fills exactly one screen: brand at the top, button, picture on the bottom edge. */
   #intro { overflow: hidden; align-items: stretch; padding-bottom: 0; }
+  /* Picture fills the lower 70% as a background, anchored at the top so the faces show and the legs crop;
+     the start button sits over the legs on a fade. */
+  #intro::after { content: ''; position: absolute; left: 0; right: 0; bottom: 0; height: clamp(120px, 24%, 260px); background: linear-gradient(180deg, transparent 0%, rgba(19,18,23,.85) 40%, var(--bg) 72%); pointer-events: none; }
   #intro .intro-card { height: 100%; margin: 0 auto; justify-content: flex-start; gap: 0; }
+  #intro .intro-brand, #intro .intro-cta { position: relative; z-index: 1; }
   .intro-brand { display: flex; flex-direction: column; align-items: center; gap: 10px; padding-top: clamp(28px, 9vh, 96px); }
   .intro-brand .h-mark.lg { width: 72px; height: 72px; border-radius: 20px; font-size: 42px; }
-  .intro-cta { width: 100%; display: flex; flex-direction: column; align-items: center; gap: 10px; margin-top: clamp(24px, 6vh, 56px); }
+  .intro-cta { width: 100%; display: flex; flex-direction: column; align-items: center; gap: 10px; margin-top: auto; padding-bottom: calc(22px + env(safe-area-inset-bottom)); }
   #intro-start { border-radius: 999px; min-height: 54px; font-size: 17px; }
-  #intro .intro-art { flex: 1 1 0; min-height: 0; width: 100%; height: auto; max-height: 46vh; object-fit: contain; object-position: center bottom; margin: auto auto 0; padding-top: 12px; animation: none; }
+  #intro .intro-art { position: absolute; z-index: 0; left: 50%; bottom: 0; transform: translateX(-50%); width: min(100%, 520px); height: min(70%, calc(100% - 268px)); margin: 0; object-fit: cover; object-position: center top; animation: none; }
   .intro-title { font-size: 40px; font-weight: 700; letter-spacing: -1.2px; line-height: 1.15; }
   .intro-title span + span { color: var(--accent); }
   .intro-sub { color: var(--text-2); font-size: 15px; line-height: 1.7; }
