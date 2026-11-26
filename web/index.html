@@ -214,15 +214,34 @@
   .menu-row .icon { color: var(--primary-text); }
 
   /* ── Rooms / live status ─────────────────────────────── */
-  .room-card { padding: 16px 14px 12px 16px; background: linear-gradient(165deg, #231f2c 0%, var(--surface) 70%); border-color: #2f2a3a; border-radius: 18px; }
+  .card.room-card { display: flex; gap: 14px; align-items: flex-start; padding: 14px 12px 14px 14px; background: linear-gradient(165deg, #231f2c 0%, var(--surface) 70%); border-color: #2f2a3a; border-radius: 18px; }
+  .venue-body { flex: 1; min-width: 0; }
+  .venue-thumb { flex-shrink: 0; width: 76px; height: 76px; border-radius: 16px; overflow: hidden; display: flex; flex-direction: column; background: linear-gradient(150deg, color-mix(in srgb, var(--tone) 85%, #fff 15%), var(--tone)); box-shadow: inset 0 0 0 1px rgba(255,255,255,.08); }
+  .venue-thumb b { flex: 1; display: grid; place-items: center; font-size: 30px; font-weight: 800; color: #fff; }
+  .venue-thumb span { padding: 4px 2px; text-align: center; font-size: 11px; font-weight: 700; color: #fff; background: rgba(0,0,0,.32); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .stats.compact { margin-top: 8px; }
+  .stats-line { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 10px; font-size: 13px; color: var(--text-2); }
+  .sstat { display: inline-flex; align-items: baseline; gap: 4px; border-radius: 999px; transition: opacity .2s; }
+  .sstat b { font-weight: 800; color: var(--text); font-variant-numeric: tabular-nums; min-width: 1ch; }
+  .sstat.key { padding: 5px 11px; background: var(--pink-soft); border: 1px solid rgba(240,122,182,.35); color: var(--pink); font-weight: 700; font-size: 14px; }
+  .sstat.key b { color: var(--pink); }
+  .sstat.zero b { color: var(--text-2); }
+  .sstat.unset b { color: var(--text-3); font-weight: 600; }
+  .sstat.flash { animation: flash 1s ease-out; }
+  .stats.compact[data-state="loading"] .sstat b { color: transparent; width: 18px; display: inline-block; border-radius: 4px; background: linear-gradient(90deg, var(--surface-3) 0%, #3b3549 50%, var(--surface-3) 100%); background-size: 200% 100%; animation: shimmer 1.2s infinite; }
+  .stats.compact[data-state="error"] .stats-line { opacity: .4; }
+  .stats.compact[data-state="none"] .stats-line { display: none; }
+  .stats.compact[data-state="none"] + .room-foot { display: none; }
+  .stats.compact[data-state="none"] .stat-note { margin-top: 0; padding: 0; background: none; font-size: 12px; color: var(--text-3); }
   .room-card:hover { border-color: #4a3f63; }
   .room-meta { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 10px; }
   .room-head { display: flex; align-items: flex-start; gap: 6px; }
-  .room-head .icon-btn { width: 44px; height: 44px; margin: -8px -8px 0 0; flex-shrink: 0; }
+  .room-head .icon-btn { width: 44px; height: 44px; margin: -10px -8px -6px 0; flex-shrink: 0; }
   /* Long Korean venue names: break between words, never mid-word, up to two lines. */
   .venue-name { font-weight: 800; font-size: 17px; line-height: 1.35; letter-spacing: -.2px; word-break: keep-all; overflow-wrap: anywhere; display: -webkit-box; -webkit-line-clamp: 2; line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
   .room-meta { margin-top: 3px; font-size: 13px; color: var(--text-2); }
-  .room-foot { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-top: 10px; min-height: 22px; }
+  .room-foot { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-top: 8px; min-height: 18px; }
+  @media (max-width: 360px) { .venue-thumb { width: 60px; height: 60px; } .venue-thumb b { font-size: 24px; } .card.room-card { gap: 10px; } }
   .fresh { display: inline-flex; align-items: center; gap: 6px; font-size: 12px; color: var(--text-3); }
   .fresh::before { content: ''; width: 7px; height: 7px; border-radius: 50%; background: var(--text-3); }
   .fresh.now { color: var(--ok); }
@@ -1018,7 +1037,7 @@ const S = {
   token: null,
   user: null,
   epoch: 0,          // bumps on logout/account change; late responses from older epochs are dropped
-  tab: 'home',
+  tab: 'live',
   stack: [],        // [{ render, cleanup }]
   counts: null,
   mediaUrls: new Map(),
@@ -1265,8 +1284,8 @@ function pagedList({ fetchPage, renderItem, emptyText }) {
    Navigation (5 tabs on phones + 마이 in the header; 6 in the desktop sidebar)
    ════════════════════════════════════════════════════════════════════ */
 const TABS = [
-  ['home', t('홈'), t('홈'), 'home', viewHome],
   ['live', t('초이스톡'), t('초이스톡'), 'live', () => viewRooms('live')],
+  ['home', t('홈'), t('홈'), 'home', viewHome],
   ['daily', t('데일리톡'), t('데일리톡'), 'chat', () => viewRooms('daily')],
   ['lounge', t('라운지'), t('라운지'), 'board', viewLounge],
   ['places', t('플레이스'), t('플레이스'), 'pin', viewPlaces],
@@ -1634,17 +1653,20 @@ document.addEventListener('focusout', () => setTimeout(() => { if (!isTextField(
  *  error   — last values dimmed, with a retry button
  * Pass `undefined` to start in loading, `null` for "not reported".
  */
-function statsBlock(st) {
+function statsBlock(st, compact = false) {
   const cells = [['choice', t('초중')], ['entry', t('엔트리')], ['waiting', t('대기')], ['vacancy', t('빈방')]];
-  const grid = h('div', { class: 'stats4' }, cells.map(([k, label]) => h('div', { class: 'stat', 'data-k': k }, h('b', null, ''), h('span', null, label))));
+  // compact: one line for list rows — 초중 as the highlighted chip, the other three after it.
+  const grid = compact
+    ? h('div', { class: 'stats-line' }, cells.map(([k, label], i) => h('span', { class: 'sstat' + (i === 0 ? ' key' : ''), 'data-k': k }, h('span', null, label), h('b', null, ''))))
+    : h('div', { class: 'stats4' }, cells.map(([k, label]) => h('div', { class: 'stat', 'data-k': k }, h('b', null, ''), h('span', null, label))));
   const note = h('div', { class: 'stat-note', role: 'status' });
-  const el = h('div', { class: 'stats' }, grid, note);
+  const el = h('div', { class: 'stats' + (compact ? ' compact' : '') }, grid, note);
   let current = null;
   const setState = s => { el.dataset.state = s; el.setAttribute('aria-busy', String(s === 'loading')); };
   function paint(next, flash) {
     for (const [k, label] of cells) {
       const cell = grid.querySelector(`[data-k="${k}"]`);
-      const b = cell.firstChild;
+      const b = cell.querySelector('b');
       const n = next?.[k];
       const v = numOrDash(n);
       cell.classList.toggle('zero', n === 0);
@@ -1700,6 +1722,17 @@ const resetEmpty = (text, label, onReset) =>
   h('div', { class: 'empty-reset' }, h('p', null, text), h('button', { class: 'btn primary', onclick: onReset }, label));
 const stateBadge = s => { const [t, c] = MEMBER_STATE[s] || MEMBER_STATE.none; return h('span', { class: 'badge ' + c }, t); };
 
+/** List-row tile: the venue's initial on its own colour, with the area underneath (no photos needed). */
+const THUMB_TONES = ['#6d4bb8', '#a23c74', '#2f6f6a', '#8a5a2b', '#3d4f8f', '#7a3f9a'];
+function venueThumb(r) {
+  const skip = ['합성', '테스트', '가게', 'test', 'store'];
+  const word = r.title.split('·')[0].trim().split(/\s+/).find(w => !skip.includes(w.toLowerCase())) || r.title;
+  let hash = 0;
+  for (const ch of String(r.id)) hash = (hash * 31 + ch.charCodeAt(0)) >>> 0;
+  return h('div', { class: 'venue-thumb', style: `--tone:${THUMB_TONES[hash % THUMB_TONES.length]}`, 'aria-hidden': 'true' },
+    h('b', null, [...word][0]), h('span', null, (r.region && REGIONS[r.region]) || ROOM_KIND[r.kind] || ''));
+}
+
 function viewRooms(mode) {
   const isDaily = mode === 'daily';
   const DEFAULTS = { kind: isDaily ? 'daily' : 'store,general', region: '', q: '', saved: false };
@@ -1716,26 +1749,25 @@ function viewRooms(mode) {
 
   function card(r) {
     const isStore = r.kind === 'store'; // counts only mean something for store rooms
-    const stats = isStore ? statsBlock(r.liveStatus) : null;
+    const stats = isStore ? statsBlock(r.liveStatus, true) : null;
     const fresh = h('span', null, isStore ? freshTag(r.liveStatus) : '');
     cards.set(r.id, { stats, fresh });
     const open = () => push(viewRoom(r.id));
     const meta = [
-      r.region && h('span', { class: 'meta-i' }, icon('pin'), REGIONS[r.region]),
       h('span', { class: 'meta-i', 'aria-label': t('참여 {n}명', { n: `${r.activeCount}${r.capacity ? '/' + r.capacity : ''}` }) }, icon('users'), `${r.activeCount}${r.capacity ? '/' + r.capacity : ''}`),
       h('span', { class: 'badge ' + (r.joinPolicy === 'approval' ? 'primary' : 'ok') }, r.joinPolicy === 'approval' ? t('승인제') : t('바로 참여'))];
     return h('div', { class: 'card click room-card', role: 'button', tabindex: 0, onclick: open, onkeydown: e => e.target === e.currentTarget && e.key === 'Enter' && open() },
-      h('div', { class: 'room-head' },
-        h('div', { class: 'grow', style: 'min-width:0' },
-          h('div', { class: 'venue-name' }, r.title),
-          h('div', { class: 'room-meta' }, ...meta.filter(Boolean))),
-        heartBtn(r.saved, saveToggle('room', r.id))),
-      stats?.el,
-      h('div', { class: 'room-foot' }, fresh,
-        h('div', { class: 'row', style: 'gap:4px' },
+      venueThumb(r),
+      h('div', { class: 'venue-body' },
+        h('div', { class: 'room-head' },
+          h('div', { class: 'venue-name grow' }, r.title),
+          heartBtn(r.saved, saveToggle('room', r.id))),
+        h('div', { class: 'room-meta' }, ...meta.filter(Boolean),
           (!isStore || r.anonymous) && h('span', { class: 'badge primary' }, r.anonymous ? t('익명 오픈톡') : ROOM_KIND[r.kind]),
           r.status === 'closed' && h('span', { class: 'badge' }, t('종료')),
-          r.myState !== 'none' && stateBadge(r.myState))));
+          r.myState !== 'none' && stateBadge(r.myState)),
+        stats?.el,
+        isStore && h('div', { class: 'room-foot' }, fresh)));
   }
 
   const kindChips = !isDaily && chipGroup([['store,general', t('전체')], ['store', t('가게방')], ['general', t('일반방')]], f.kind, v => { f.kind = v; reloadList(); });
@@ -1819,7 +1851,7 @@ function viewRooms(mode) {
     h('div', null,
       h('div', { class: 'eyebrow' }, isDaily ? t('주제별 채팅') : t('실시간 가게 현황')),
       h('div', { class: 'between' }, h('h1', { class: 'view-title' }, isDaily ? t('데일리톡') : t('초이스톡')), !isDaily && badge.el)),
-    h('p', { class: 'view-sub' }, isDaily ? t('주제별로 모여 가볍게 이야기해요.') : t('가게별 초중·엔트리·대기·빈방을 실시간으로 확인해요.')),
+    isDaily && h('p', { class: 'view-sub' }, t('주제별로 모여 가볍게 이야기해요.')),
     h('div', { class: 'sticky-search' }, search.el),
     kindChips,
     h('div', { class: 'row' }, h('div', { class: 'grow' }, regionChips), savedChip),
@@ -2646,7 +2678,7 @@ async function initNative() {
     if ($('#sheet-root .sheet-back:not(.closing)')) return closeSheet();
     if (!$('#shell').classList.contains('hidden')) {
       if (S.stack.length > 1) return back();
-      if (S.tab !== 'home') return switchTab('home');
+      if (S.tab !== 'live') return switchTab('live');
     } else if (!$('#login').classList.contains('hidden')) return show('intro');
     NATIVE.App.minimizeApp();
   });
@@ -2688,7 +2720,7 @@ function startSession(token, user) {
   S.token = token; S.user = user;
   try { sessionStore?.setItem('hiunni.session', JSON.stringify({ token, user })); } catch {}
   show('shell');
-  switchTab('home');
+  switchTab('live'); // the venue list is the first thing people see
   refreshCounts();
   clearInterval(countsTimer);
   countsTimer = setInterval(refreshCounts, 20000);
