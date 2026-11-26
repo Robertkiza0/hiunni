@@ -59,5 +59,6 @@ const html = fs.readFileSync(src, 'utf8');
 const marker = /<script>\r?\n'use strict';/;
 if (!marker.test(html)) fail(`could not find the app script marker in ${src}`);
 fs.writeFileSync(path.join(out, 'index.html'), html.replace(marker, m => inject + m));
+fs.cpSync(path.resolve(root, '../web/art'), path.join(out, 'art'), { recursive: true }); // illustrations
 
 console.log(`✔ www/ built · api=${apiBase} · push=${push ? 'on' : 'off'} · env=${cfg.env}`);

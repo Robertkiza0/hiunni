@@ -36,5 +36,6 @@ const inject = `<script>window.HIUNNI_CONFIG=${JSON.stringify(cfg).replace(/</g,
 fs.mkdirSync(out, { recursive: true });
 fs.writeFileSync(path.join(out, 'index.html'), html.replace(marker, m => inject + m));
 fs.copyFileSync(path.join(here, 'vercel.json'), path.join(out, 'vercel.json'));
+fs.cpSync(path.resolve(here, '../../web/art'), path.join(out, 'art'), { recursive: true }); // illustrations
 
 console.log(`✔ dist/ built · api=${apiBase}`);
