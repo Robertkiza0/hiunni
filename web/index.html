@@ -349,6 +349,16 @@
   .filter-scroll > .chip { flex-shrink: 0; }
   .filter-sep { flex-shrink: 0; width: 1px; height: 22px; background: var(--line); margin: 0 2px; }
   @media (max-width: 360px) { .filter-scroll { margin: 0 -12px; padding: 2px 12px; } }
+  /* 업종 tabs on 초이스톡 (전체 · 하이퍼블릭 · 쩜오 · 텐): underlined, like a shop's category bar. */
+  .cat-tabs { display: flex; gap: 2px; margin: -2px -16px 0; padding: 0 12px; border-bottom: 1px solid var(--line); overflow-x: auto; scrollbar-width: none; }
+  .cat-tabs::-webkit-scrollbar { display: none; }
+  .cat-tab { position: relative; flex-shrink: 0; min-height: 44px; padding: 0 12px; font-size: 15px; font-weight: 700; color: var(--text-3); transition: color .2s ease; }
+  .cat-tab:hover { color: var(--text-2); }
+  .cat-tab[aria-selected="true"] { color: var(--text); }
+  .cat-tab[aria-selected="true"]::after { content: ''; position: absolute; left: 10px; right: 10px; bottom: -1px; height: 3px; border-radius: 3px 3px 0 0; background: var(--fill); animation: tabIn .25s cubic-bezier(.22,1,.36,1); }
+  @keyframes tabIn { from { transform: scaleX(.3); opacity: 0; } }
+  @media (max-width: 360px) { .cat-tabs { margin: -2px -12px 0; padding: 0 8px; } }
+  .badge.biz { color: var(--pink); background: var(--pink-soft); border-color: rgba(240,122,182,.28); }
   .room-hero { background: var(--plum); border: 1px solid var(--plum-line); border-radius: 18px; padding: 14px 14px 12px; }
   .room-hero .stats { margin-top: 12px; }
   .tool-bar { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 8px; margin-top: 8px; }
@@ -563,6 +573,14 @@ const EN = {
  "초이스톡": "ChoiceTalk",
  "가게별 초중·엔트리·대기·빈방을 실시간으로 확인해요.": "See each store's choice, entry, waiting and vacant counts live.",
  "가게 이름으로 찾기": "Search by store name",
+ "가게 이름이나 동네로 찾기": "Search by store or neighbourhood",
+ "하이퍼블릭": "Hyper Public",
+ "쩜오": "Jjeomo",
+ "텐": "Ten",
+ "업종": "Business type",
+ "검색어 지우기": "Clear search",
+ "필터 초기화": "Reset filters",
+ "‘{q}’에 맞는 가게가 없어요.": "No stores match ‘{q}’.",
  "검색어 지우기": "Clear search",
  "아직 열린 방이 없어요.": "No open rooms yet.",
  "‘{q}’에 맞는 방이 없어요.": "No rooms match ‘{q}’.",
@@ -1080,6 +1098,8 @@ const qs = obj => {
 };
 
 const REGIONS = { '': t('전체'), gangnam: t('강남'), hongdae: t('홍대'), jamsil: t('잠실') };
+/** 업종 groups, the same as the existing service: 하이퍼블릭 · 쩜오 · 텐. */
+const CATEGORIES = { hyperpublic: t('하이퍼블릭'), jjeomo: t('쩜오'), ten: t('텐') };
 const ROOM_KIND = { store: t('가게방'), general: t('일반방'), daily: t('데일리톡') };
 const MEMBER_STATE = {
   none: [t('미참여'), ''], pending: [t('승인 대기'), 'warn'], active: [t('참여 중'), 'ok'],
@@ -1297,6 +1317,15 @@ function chipGroup(options, current, onPick) {
     h('button', { class: 'chip', 'aria-pressed': String(v === val), onclick: () => { draw(v); onPick(v); } }, label)));
   draw(current);
   wrap.set = draw; // select a value without firing onPick (used by "reset")
+  return wrap;
+}
+/** Underlined tab row (e.g. 업종 on 초이스톡). Same contract as chipGroup: onPick(value), .set(value). */
+function tabRow(options, current, onPick, label) {
+  const wrap = h('div', { class: 'cat-tabs', role: 'tablist', 'aria-label': label });
+  const draw = val => wrap.replaceChildren(...options.map(([v, text]) =>
+    h('button', { class: 'cat-tab', role: 'tab', 'aria-selected': String(v === val), onclick: () => { if (v !== val) { draw(v); onPick(v); } } }, text)));
+  draw(current);
+  wrap.set = draw;
   return wrap;
 }
 function switchBtn(on, onChange, label) {
@@ -1819,13 +1848,14 @@ function productCard(r, stats, fresh, open) {
   const photo = h('div', { class: 'pc-photo' },
     venueThumb(r),
     r.coverUrl && h('img', { src: r.coverUrl, alt: '', loading: 'lazy', decoding: 'async', onerror: e => e.target.remove() }),
-    r.region && h('span', { class: 'pc-tag' }, REGIONS[r.region]),
+    (r.region || r.area) && h('span', { class: 'pc-tag' }, [REGIONS[r.region], r.area].filter(Boolean).join(' · ')),
     h('div', { class: 'pc-heart' }, heartBtn(r.saved, saveToggle('room', r.id))));
   return h('div', { class: 'card click room-card product', role: 'button', tabindex: 0, 'aria-label': r.title, onclick: open, onkeydown: e => e.target === e.currentTarget && e.key === 'Enter' && open() },
     photo,
     h('div', { class: 'pc-body' },
       h('div', { class: 'venue-name' }, r.title),
       h('div', { class: 'room-meta' },
+        r.category && h('span', { class: 'badge biz' }, CATEGORIES[r.category]),
         h('span', { class: 'meta-i', 'aria-label': t('참여 {n}명', { n: people }) }, icon('users'), people),
         h('span', { class: 'badge ' + (r.joinPolicy === 'approval' ? 'primary' : 'ok') }, r.joinPolicy === 'approval' ? t('승인제') : t('바로 참여')),
         (!isStore || r.anonymous) && h('span', { class: 'badge primary' }, r.anonymous ? t('익명 오픈톡') : ROOM_KIND[r.kind]),
@@ -1870,13 +1900,13 @@ function shopBanner() {
 
 function viewRooms(mode) {
   const isDaily = mode === 'daily';
-  const DEFAULTS = { kind: isDaily ? 'daily' : 'store,general', region: '', q: '', saved: false };
+  const DEFAULTS = { kind: isDaily ? 'daily' : 'store,general', category: '', region: '', q: '', saved: false };
   const f = { ...DEFAULTS };
   const cards = new Map(); // roomId → { stats, fresh }
   const badge = connBadge();
   let searchTimer;
   const search = searchBox({
-    placeholder: isDaily ? t('주제 검색') : t('가게 이름으로 찾기'),
+    placeholder: isDaily ? t('주제 검색') : t('가게 이름이나 동네로 찾기'),
     label: t('검색'),
     onChange: q => { clearTimeout(searchTimer); searchTimer = setTimeout(() => { f.q = q; reloadList(); }, 300); },
     onSubmit: q => { clearTimeout(searchTimer); if (q !== f.q) { f.q = q; reloadList(); } },
@@ -1907,27 +1937,37 @@ function viewRooms(mode) {
   }
 
   const kindChips = !isDaily && chipGroup([['store,general', t('전체')], ['store', t('가게방')], ['general', t('일반방')]], f.kind, v => { f.kind = v; reloadList(); });
+  const catTabs = !isDaily && tabRow([['', t('전체')], ...Object.entries(CATEGORIES)], '', v => { f.category = v; reloadList(); }, t('업종'));
   const regionChips = chipGroup(Object.entries(REGIONS), '', v => { f.region = v; reloadList(); });
   const savedChip = h('button', { class: 'chip', 'aria-pressed': 'false', onclick: () => { f.saved = !f.saved; savedChip.setAttribute('aria-pressed', String(f.saved)); reloadList(); } }, t('♡ 찜'));
-  const filtered = () => f.q || f.region || f.saved || f.kind !== DEFAULTS.kind;
+  const filtered = () => f.q || f.category || f.region || f.saved || f.kind !== DEFAULTS.kind;
   function resetFilters() {
     clearTimeout(searchTimer);
     Object.assign(f, DEFAULTS);
     search.set('');
     kindChips?.set(f.kind);
+    catTabs?.set('');
     regionChips.set('');
     savedChip.setAttribute('aria-pressed', 'false');
     reloadList();
   }
+  /** No results for a search word: clear only the word; tab, 업종 and region stay as chosen. */
+  function clearSearch() {
+    clearTimeout(searchTimer);
+    f.q = '';
+    search.set('');
+    reloadList();
+  }
 
   const list = pagedList({
-    fetchPage: cursor => api('GET', '/rooms' + qs({ kind: f.kind, region: f.region, q: f.q, saved: f.saved && 'true', cursor, limit: 20 })),
+    fetchPage: cursor => api('GET', '/rooms' + qs({ kind: f.kind, category: f.category, region: f.region, q: f.q, saved: f.saved && 'true', cursor, limit: 20 })),
     renderItem: card,
     emptyArt: () => (isDaily && !filtered() ? 'hello' : null),
     emptyText: () => {
       if (!filtered()) return t('아직 열린 방이 없어요.');
-      const text = f.q ? t('‘{q}’에 맞는 방이 없어요.', { q: f.q }) : f.saved && !f.region ? t('찜한 방이 없어요.') : t('조건에 맞는 방이 없어요.');
-      return resetEmpty(text, t('검색·필터 초기화'), resetFilters);
+      if (f.q) return resetEmpty(isDaily ? t('‘{q}’에 맞는 방이 없어요.', { q: f.q }) : t('‘{q}’에 맞는 가게가 없어요.', { q: f.q }), t('검색어 지우기'), clearSearch);
+      const text = f.saved && !f.region && !f.category ? t('찜한 방이 없어요.') : t('조건에 맞는 방이 없어요.');
+      return resetEmpty(text, t('필터 초기화'), resetFilters);
     },
   });
   const reloadList = () => { cards.clear(); list.reload(); };
@@ -1936,7 +1976,7 @@ function viewRooms(mode) {
   async function refreshCounts() {
     if (isDaily || !cards.size) return;
     try {
-      const r = await api('GET', '/rooms' + qs({ kind: f.kind, region: f.region, q: f.q, saved: f.saved && 'true', limit: Math.min(50, Math.max(20, cards.size)) }));
+      const r = await api('GET', '/rooms' + qs({ kind: f.kind, category: f.category, region: f.region, q: f.q, saved: f.saved && 'true', limit: Math.min(50, Math.max(20, cards.size)) }));
       for (const room of r.items) {
         const c = cards.get(room.id);
         if (!c?.stats) continue;
@@ -1992,6 +2032,7 @@ function viewRooms(mode) {
       : h('div', { class: 'between shop-head' }, h('h1', { class: 'view-title' }, t('초이스톡')), badge.el),
     isDaily && h('p', { class: 'view-sub' }, t('주제별로 모여 가볍게 이야기해요.')),
     banner?.el,
+    catTabs,
     h('div', { class: 'sticky-search' }, search.el),
     isDaily
       ? h('div', { class: 'row' }, h('div', { class: 'grow' }, regionChips), savedChip)

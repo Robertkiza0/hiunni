@@ -140,3 +140,8 @@ INSERT OR IGNORE INTO place_hours (place_id, weekday, open_min, close_min) VALUE
   -- pl13 intentionally has no hours (unknown ≠ closed)
 
 INSERT OR IGNORE INTO place_closures (place_id, date) VALUES ('pl02', '2026-11-25'), ('pl07', '2026-11-28');
+
+-- 업종 and 동네 for the 초이스톡 filters (migration 0006). Synthetic stores; real 동 names are just places.
+UPDATE stores SET category = 'hyperpublic', area = '역삼동' WHERE id = 'store1';
+UPDATE stores SET category = 'jjeomo',      area = '서교동' WHERE id = 'store2';
+UPDATE stores SET category = 'ten',         area = '논현동' WHERE id = 'store3';

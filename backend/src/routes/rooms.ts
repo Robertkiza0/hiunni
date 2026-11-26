@@ -21,6 +21,9 @@ import { signedMediaUrl } from '../lib/media-url';
 import { notify } from '../lib/notify';
 import { broadcast, hubFor, revoke, type Channel } from '../lib/realtime';
 
+/** 업종 groups, the same as the existing service (/api/status): 하이퍼블릭 · 쩜오 · 텐. */
+export const STORE_CATEGORIES = ['hyperpublic', 'jjeomo', 'ten'] as const;
+
 interface RoomRow {
   id: string;
   kind: 'general' | 'store' | 'daily';
@@ -111,6 +114,8 @@ rooms.get('/', async c => {
         .transform(s => (s ? [...new Set(s.split(',').filter(Boolean))] : []))
         .pipe(z.array(z.enum(['general', 'store', 'daily']))),
       region: z.string().max(40).optional(),
+      // 업종 (store rooms only): 하이퍼블릭 · 쩜오 · 텐
+      category: z.enum(STORE_CATEGORIES).optional(),
       q: z.string().trim().min(1).max(60).optional(),
       saved: z.enum(['true', 'false']).optional(),
       cursor: z.string().optional(),
@@ -127,18 +132,22 @@ rooms.get('/', async c => {
     args.push(user.id);
   }
   if (q.region) (where.push('r.region = ?'), args.push(q.region));
-  if (q.q) (where.push("r.title LIKE ? ESCAPE '\\'"), args.push(likePattern(q.q)));
+  if (q.category) (where.push('st.category = ?'), args.push(q.category));
+  // Search matches the room/store name or the store's 동네 (e.g. 역삼동).
+  if (q.q) (where.push("(r.title LIKE ? ESCAPE '\\' OR st.area LIKE ? ESCAPE '\\')"), args.push(likePattern(q.q), likePattern(q.q)));
   if (cur) (where.push('(r.created_at < ? OR (r.created_at = ? AND r.id < ?))'), args.push(cur.c, cur.c, cur.i));
   const { results } = await c.env.DB.prepare(
     `SELECT r.*, m.state AS my_state,
             (SELECT COUNT(*) FROM room_members a WHERE a.room_id = r.id AND a.state = 'active') AS active_count,
             s.choice, s.entry, s.waiting, s.vacancy, s.updated_at AS status_updated_at,
+            st.category AS store_category, st.area AS store_area,
             EXISTS (SELECT 1 FROM saved_items si WHERE si.user_id = ? AND si.target_type = 'room' AND si.target_id = r.id) AS saved,
             (SELECT md.id FROM stores st JOIN media md ON md.id = st.cover_media_id AND md.deleted_at IS NULL
               WHERE st.id = r.store_id) AS cover_id
        FROM rooms r
        LEFT JOIN room_members m ON m.room_id = r.id AND m.user_id = ?
        LEFT JOIN room_status s ON s.room_id = r.id
+       LEFT JOIN stores st ON st.id = r.store_id
       ${where.length ? 'WHERE ' + where.join(' AND ') : ''}
       ORDER BY r.created_at DESC, r.id DESC LIMIT ?`
   )
@@ -155,6 +164,8 @@ rooms.get('/', async c => {
       kind: r.kind,
       title: r.title,
       region: r.region,
+      category: r.store_category ?? null,
+      area: r.store_area ?? null,
       status: r.status,
       joinPolicy: r.join_policy,
       anonymous: !!r.anonymous,
@@ -181,12 +192,19 @@ rooms.get('/:id', async c => {
   )
     .bind(c.get('user').id, room.id)
     .first();
+  const store = room.store_id
+    ? await c.env.DB.prepare('SELECT category, area FROM stores WHERE id = ?')
+        .bind(room.store_id)
+        .first<{ category: string | null; area: string | null }>()
+    : null;
   return c.json({
     saved: saved !== null,
     id: room.id,
     kind: room.kind,
     title: room.title,
     region: room.region,
+    category: store?.category ?? null,
+    area: store?.area ?? null,
     status: room.status,
     joinPolicy: room.join_policy,
     capacity: room.capacity,

@@ -54,3 +54,13 @@ INSERT OR REPLACE INTO room_status (room_id, choice, entry, waiting, vacancy, up
   ('room7',  0,  0,  0,    0, CAST(strftime('%s','now') AS INTEGER) * 1000 - 300000,   'staff6'),
   ('room8',  3,  11, 2,    4, CAST(strftime('%s','now') AS INTEGER) * 1000 - 7200000,  'staff6'),
   ('room10', 1,  5,  1,    2, CAST(strftime('%s','now') AS INTEGER) * 1000 - 240000,   'staff6');
+
+-- 업종 and 동네 for the 초이스톡 filters (migration 0006).
+UPDATE stores SET category = 'hyperpublic', area = '역삼동' WHERE id = 'store4';
+UPDATE stores SET category = 'ten',         area = '청담동' WHERE id = 'store5';
+UPDATE stores SET category = 'hyperpublic', area = '동교동' WHERE id = 'store6';
+UPDATE stores SET category = 'jjeomo',      area = '잠실동' WHERE id = 'store7';
+UPDATE stores SET category = 'hyperpublic', area = '삼전동' WHERE id = 'store8';
+UPDATE stores SET category = 'jjeomo',      area = '신사동' WHERE id = 'store9';
+UPDATE stores SET category = 'ten',         area = '연남동' WHERE id = 'store10';
+UPDATE stores SET category = 'hyperpublic', area = '논현동' WHERE id = 'store11';
