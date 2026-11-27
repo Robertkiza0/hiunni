@@ -34,3 +34,4 @@ design/local/
 # OS / editor noise
 Thumbs.db
 .DS_Store
+review-*/
